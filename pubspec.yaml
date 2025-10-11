@@ -48,19 +48,20 @@ dependencies:
   http: 1.2.2
   package_info_plus: 8.0.2
   device_info_plus: 10.1.2
+  crypto: 3.0.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: 4.0.0
-  build_runner: 2.4.12
+  build_runner: 2.4.7
 
 flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/
-    - assets/lottie/
+    # - assets/images/  # TODO: 画像アセット追加時に有効化
+    # - assets/lottie/  # TODO: Lottieアニメーション追加時に有効化
     - assets/fonts/
 
   fonts:
