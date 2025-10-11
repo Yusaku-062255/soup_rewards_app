@@ -42,6 +42,11 @@ class AppColors {
   static const Color warning = Color(0xFFFF9800);       // 警告
   static const Color error = Color(0xFFF44336);         // エラー
   static const Color info = Color(0xFF2196F3);          // 情報
+  static const Color accent = Color(0xFF4CAF50);        // アクセント
+
+  // テキストカラー（improved_home_page.dart用）
+  static const Color textPrimary = textMain;            // メインテキスト
+  static const Color textSecondary = textSub;           // サブテキスト
 
   // カーケア関連カラー
   static const Color carWash = Color(0xFF81C784);       // 洗車グリーン
