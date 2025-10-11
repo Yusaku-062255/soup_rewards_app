@@ -45,10 +45,6 @@ post_install do |installer|
       # iOS 14.0以上を強制
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
       
-      # コンパイラ警告の修正
-      config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
-      config.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
-      
       # アーキテクチャ設定
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'i386'
       
