@@ -64,6 +64,8 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   build_runner: ^2.4.7
   json_serializable: ^6.8.0
+  network_image_mock: ^2.1.1
+  fake_async: ^1.3.1
 
 flutter:
   uses-material-design: true
@@ -82,3 +84,4 @@ flutter:
           weight: 500
         - asset: assets/fonts/NotoSansJP-Bold.ttf
           weight: 700
+
