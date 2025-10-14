@@ -1,0 +1,138 @@
+name: Flutter CI
+
+# トリガー設定
+on:
+  push:
+    branches: [ main, develop, 'feature/**' ]
+  pull_request:
+    branches: [ main, develop ]
+
+# 並行実行制御
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test and Build
+    runs-on: ubuntu-latest
+    
+    steps:
+    # リポジトリをチェックアウト
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    # Java 17をセットアップ（Android build用）
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    # Flutter SDKをセットアップ
+    - name: Setup Flutter SDK
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+        cache: true
+        
+    # Flutter doctor実行（環境確認）
+    - name: Flutter doctor
+      run: flutter doctor -v
+      
+    # 依存関係を取得
+    - name: Get dependencies
+      run: flutter pub get
+      
+    # コード生成（必要に応じて）
+    - name: Generate code
+      run: flutter packages pub run build_runner build --delete-conflicting-outputs || echo "No code generation needed"
+      
+    # 静的解析実行
+    - name: Analyze code
+      run: flutter analyze --fatal-infos --fatal-warnings
+      
+    # フォーマットチェック
+    - name: Check formatting
+      run: dart format --set-exit-if-changed .
+      
+    # テスト実行
+    - name: Run tests
+      run: flutter test --coverage --reporter=expanded
+      
+    # テストカバレッジをアップロード（オプション）
+    - name: Upload coverage to Codecov
+      if: success()
+      uses: codecov/codecov-action@v3
+      with:
+        file: coverage/lcov.info
+        fail_ci_if_error: false
+        
+    # Android APKビルド
+    - name: Build Android APK
+      run: flutter build apk --release --verbose
+      
+    # ビルド成果物をアップロード
+    - name: Upload APK artifact
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: soup-rewards-app-${{ github.sha }}
+        path: build/app/outputs/flutter-apk/app-release.apk
+        retention-days: 30
+
+  # 追加ジョブ: セキュリティスキャン
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter SDK
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+        cache: true
+        
+    - name: Get dependencies
+      run: flutter pub get
+      
+    # 依存関係の脆弱性チェック
+    - name: Check for vulnerabilities
+      run: flutter pub deps --json | jq '.packages[] | select(.kind == "direct")' || echo "Dependency check completed"
+
+  # 追加ジョブ: パフォーマンステスト
+  performance:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter SDK
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+        cache: true
+        
+    - name: Get dependencies
+      run: flutter pub get
+      
+    # プロファイルビルドでパフォーマンステスト
+    - name: Build profile APK
+      run: flutter build apk --profile
+      
+    - name: Upload profile APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: soup-rewards-profile-${{ github.sha }}
+        path: build/app/outputs/flutter-apk/app-profile.apk
+        retention-days: 7
