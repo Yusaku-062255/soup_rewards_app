@@ -1,0 +1,72 @@
+{
+  "balance": 150,
+  "totalEarned": 150,
+  "history": [
+    {
+      "date": "2024-01-15T09:00:00.000Z",
+      "delta": 50,
+      "title": "Welcome Bonus",
+      "note": "Thank you for joining SOUP Rewards!"
+    },
+    {
+      "date": "2024-01-16T08:30:00.000Z",
+      "delta": 5,
+      "title": "Daily Login Bonus",
+      "note": "Welcome back! Keep your streak going!"
+    },
+    {
+      "date": "2024-01-17T09:15:00.000Z",
+      "delta": 5,
+      "title": "Daily Login Bonus",
+      "note": "Welcome back! Keep your streak going!"
+    },
+    {
+      "date": "2024-01-18T08:45:00.000Z",
+      "delta": 5,
+      "title": "Daily Login Bonus",
+      "note": "Welcome back! Keep your streak going!"
+    },
+    {
+      "date": "2024-01-19T09:30:00.000Z",
+      "delta": 10,
+      "title": "Service Review Bonus",
+      "note": "Thank you for your feedback!"
+    },
+    {
+      "date": "2024-01-20T10:00:00.000Z",
+      "delta": 25,
+      "title": "Referral Bonus",
+      "note": "Friend successfully registered!"
+    },
+    {
+      "date": "2024-01-21T08:20:00.000Z",
+      "delta": 5,
+      "title": "Daily Login Bonus",
+      "note": "Welcome back! Keep your streak going!"
+    },
+    {
+      "date": "2024-01-22T09:10:00.000Z",
+      "delta": 15,
+      "title": "Service Completion Bonus",
+      "note": "Car wash service completed!"
+    },
+    {
+      "date": "2024-01-23T08:55:00.000Z",
+      "delta": 5,
+      "title": "Daily Login Bonus",
+      "note": "Welcome back! Keep your streak going!"
+    },
+    {
+      "date": "2024-01-24T09:40:00.000Z",
+      "delta": 20,
+      "title": "Monthly Challenge Bonus",
+      "note": "Congratulations on completing the monthly challenge!"
+    },
+    {
+      "date": "2024-01-25T08:35:00.000Z",
+      "delta": 5,
+      "title": "Daily Login Bonus",
+      "note": "Welcome back! Keep your streak going!"
+    }
+  ]
+}

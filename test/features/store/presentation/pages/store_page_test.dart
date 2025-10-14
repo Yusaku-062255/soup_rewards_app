@@ -27,6 +27,9 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       // Pump again to rebuild the widget with the new state
       await tester.pump();
+      
+      // Additional wait for async operations to complete
+      await tester.pumpAndSettle(const Duration(seconds: 2));
 
       // 3. Verify loading is finished and content is displayed
       expect(find.byType(CircularProgressIndicator), findsNothing);
