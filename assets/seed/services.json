@@ -1,0 +1,134 @@
+{
+  "services": [
+    {
+      "id": "system_x_ceramic",
+      "title": "System X セラミックコーティング",
+      "subtitle": "世界最高水準のセラミックコーティング",
+      "description": "航空宇宙産業向けに開発されたセラミックコーティング剤で、耐熱性、耐紫外線性、耐薬品性に優れています。9Hの高硬度被膜と最大22μの厚みを持ち、深い光沢と艶を長期間維持します。",
+      "features": [
+        "9Hの高硬度被膜",
+        "最大22μの厚み",
+        "深い光沢と艶を長期間維持",
+        "高い疎水性により水シミを防止",
+        "セルフクリーニング効果"
+      ],
+      "points_reward": 1000,
+      "duration": "3-5年",
+      "price_range": "¥80,000～¥150,000",
+      "image": "system_x_coating.jpg",
+      "category": "premium"
+    },
+    {
+      "id": "g_guard_glass",
+      "title": "G.Guard ガラスコーティング",
+      "subtitle": "無機質のガラス被膜を形成",
+      "description": "不純物を含まないシリカガラス被膜が塗装内部に浸透し、ボディの光沢と艶を長期間維持します。耐紫外線性、約700℃の耐熱性、不燃性、耐酸性、耐透水性、耐汚染性、防錆性に優れます。",
+      "features": [
+        "無機質シリカガラス被膜",
+        "約700℃の耐熱性",
+        "耐紫外線性・耐酸性",
+        "防錆性・耐汚染性",
+        "汚れの付着も容易に除去可能"
+      ],
+      "points_reward": 800,
+      "duration": "2-3年",
+      "price_range": "¥60,000～¥120,000",
+      "image": "g_guard_coating.jpg",
+      "category": "standard"
+    },
+    {
+      "id": "bike_coating",
+      "title": "System X バイクコーティング",
+      "subtitle": "バイク専用高性能コーティング",
+      "description": "航空宇宙産業向けに開発された高品質・高性能なセラミックコーティングで、紫外線・酸性雨・飛び石・汚れなどからバイクを強力に保護します。深みのある高光沢な仕上がりが長期間続きます。",
+      "features": [
+        "紫外線・酸性雨から保護",
+        "飛び石・汚れから強力保護",
+        "深みのある高光沢仕上がり",
+        "洗車・メンテナンスが楽に",
+        "遠赤外線による乾燥"
+      ],
+      "points_reward": 600,
+      "duration": "2-3年",
+      "price_range": "¥40,000～¥80,000",
+      "image": "bike_coating.jpg",
+      "category": "bike"
+    },
+    {
+      "id": "wheel_coating",
+      "title": "ホイールコーティング",
+      "subtitle": "System X WHEEL",
+      "description": "汚れやすいホイール表面にコーティングをすることで、ブレーキダストや汚れの付着を防ぎます。高い疎水性と耐擦傷性を持ち、3年間の耐久性でホイールの光沢を維持します。",
+      "features": [
+        "ブレーキダスト付着防止",
+        "高い疎水性・耐擦傷性",
+        "3年間の耐久性",
+        "日常の手入れが容易",
+        "光沢維持"
+      ],
+      "points_reward": 300,
+      "duration": "3年",
+      "price_range": "¥20,000～¥40,000",
+      "image": "wheel_coating.jpg",
+      "category": "parts"
+    },
+    {
+      "id": "window_coating",
+      "title": "ウィンドウコート",
+      "subtitle": "System X Glass",
+      "description": "窓ガラスに高い撥水性と耐久性を提供するコーティングです。ガラス表面を平滑化し、水滴が素早く流れ落ちることで、雨天時の視界が向上。ワイパーのビビリを軽減します。",
+      "features": [
+        "高い撥水性・耐久性",
+        "ガラス表面の平滑化",
+        "雨天時の視界向上",
+        "ワイパーのビビリ軽減",
+        "快適なドライブをサポート"
+      ],
+      "points_reward": 200,
+      "duration": "1-2年",
+      "price_range": "¥15,000～¥25,000",
+      "image": "window_coating.jpg",
+      "category": "parts"
+    },
+    {
+      "id": "interior_coating",
+      "title": "インテリアコーティング",
+      "subtitle": "System X REVIVE",
+      "description": "車内の未塗装樹脂部分に特化したインテリアコーティングです。紫外線や熱による劣化を防ぎ、汚れの付着を抑制します。施工後は水拭きで簡単にお手入れが可能となります。",
+      "features": [
+        "未塗装樹脂部分に特化",
+        "紫外線・熱による劣化防止",
+        "汚れの付着抑制",
+        "水拭きで簡単お手入れ",
+        "車内の高級感を長期間維持"
+      ],
+      "points_reward": 250,
+      "duration": "2-3年",
+      "price_range": "¥18,000～¥35,000",
+      "image": "interior_coating.jpg",
+      "category": "parts"
+    }
+  ],
+  "categories": {
+    "premium": {
+      "name": "プレミアムコーティング",
+      "description": "最高品質のコーティングサービス",
+      "color": "#D4AF37"
+    },
+    "standard": {
+      "name": "スタンダードコーティング", 
+      "description": "高品質で信頼性の高いコーティング",
+      "color": "#1A2332"
+    },
+    "bike": {
+      "name": "バイクコーティング",
+      "description": "バイク専用のコーティングサービス",
+      "color": "#FF8C00"
+    },
+    "parts": {
+      "name": "パーツコーティング",
+      "description": "各部位専用のコーティングサービス",
+      "color": "#2C3E50"
+    }
+  }
+}

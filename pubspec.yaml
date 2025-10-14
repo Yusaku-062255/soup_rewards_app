@@ -64,8 +64,17 @@ flutter:
 
   assets:
     - assets/fonts/
-    # - assets/images/  # 存在しないためコメントアウト
-    # - assets/lottie/  # 存在しないためコメントアウト
+    - assets/
+    - assets/soup/
+    - assets/soup/hero/
+    - assets/soup/services/
+    - assets/soup/gallery/
+    - assets/soup/logos/
+    - assets/meta/
+    - assets/seed/
+    - assets/soup_hero_section.webp
+    - assets/soup_interior_section.webp
+    - assets/soup_coating_gallery.webp
 
   fonts:
     - family: NotoSansJP

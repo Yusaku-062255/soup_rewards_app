@@ -1,8 +1,11 @@
-// クーポン画面
 import 'package:flutter/material.dart';
+import '../../../core/theme/soup_theme.dart';
 import '../../../core/models/coupon_model.dart';
 import '../../../core/services/coupon_store.dart';
+import '../widgets/coupon_card.dart';
 
+/// SOUP公式クーポンページ
+/// 利用可能・使用済みクーポンを管理
 class CouponsPage extends StatefulWidget {
   const CouponsPage({super.key});
 
@@ -10,8 +13,11 @@ class CouponsPage extends StatefulWidget {
   State<CouponsPage> createState() => _CouponsPageState();
 }
 
-class _CouponsPageState extends State<CouponsPage> with TickerProviderStateMixin {
+class _CouponsPageState extends State<CouponsPage> 
+    with TickerProviderStateMixin {
   late TabController _tabController;
+  late AnimationController _animationController;
+  
   List<CouponModel> _availableCoupons = [];
   List<CouponModel> _redeemedCoupons = [];
   bool _isLoading = false;
@@ -20,6 +26,10 @@ class _CouponsPageState extends State<CouponsPage> with TickerProviderStateMixin
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
     _loadCoupons();
     _initializeDefaultCoupons();
   }
@@ -27,6 +37,7 @@ class _CouponsPageState extends State<CouponsPage> with TickerProviderStateMixin
   @override
   void dispose() {
     _tabController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -47,10 +58,11 @@ class _CouponsPageState extends State<CouponsPage> with TickerProviderStateMixin
           _availableCoupons = available;
           _redeemedCoupons = redeemed;
         });
+        _animationController.forward();
       }
     } catch (e) {
       if (mounted) {
-        _showErrorSnackBar('クーポン情報の読み込みに失敗しました');
+        _showErrorSnackBar('クーポンの読み込みに失敗しました');
       }
     } finally {
       if (mounted) {
@@ -59,25 +71,490 @@ class _CouponsPageState extends State<CouponsPage> with TickerProviderStateMixin
     }
   }
 
-  Future<void> _toggleCouponRedeem(String couponId) async {
-    try {
-      final success = await CouponStore.toggleRedeem(couponId);
-      
-      if (success) {
-        await _loadCoupons();
-        if (mounted) {
-          _showSuccessSnackBar('クーポンの状態を更新しました');
-        }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: SoupTheme.backgroundGray,
+      appBar: AppBar(
+        title: const Text('クーポン'),
+        backgroundColor: SoupTheme.primaryNavy,
+        foregroundColor: SoupTheme.textWhite,
+        elevation: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: SoupTheme.primaryGold,
+          labelColor: SoupTheme.textWhite,
+          unselectedLabelColor: SoupTheme.textWhite.withOpacity(0.7),
+          tabs: [
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(SoupIcons.coupon, size: 16),
+                  const SizedBox(width: 8),
+                  Text('利用可能 (${_availableCoupons.length})'),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.history, size: 16),
+                  const SizedBox(width: 8),
+                  Text('使用済み (${_redeemedCoupons.length})'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          // 統計情報ヘッダー
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(SoupTheme.spacingL),
+            decoration: BoxDecoration(
+              gradient: SoupTheme.navyGradient,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildStatItem(
+                  '${_availableCoupons.length}',
+                  '利用可能',
+                  SoupIcons.coupon,
+                ),
+                Container(
+                  width: 1,
+                  height: 40,
+                  color: SoupTheme.textWhite.withOpacity(0.3),
+                ),
+                _buildStatItem(
+                  '${_calculateTotalSavings()}円',
+                  '節約可能額',
+                  SoupIcons.points,
+                ),
+                Container(
+                  width: 1,
+                  height: 40,
+                  color: SoupTheme.textWhite.withOpacity(0.3),
+                ),
+                _buildStatItem(
+                  '${_redeemedCoupons.length}',
+                  '使用済み',
+                  Icons.history,
+                ),
+              ],
+            ),
+          ),
+          
+          // タブビュー
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildAvailableCouponsTab(),
+                _buildRedeemedCouponsTab(),
+              ],
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showCouponInfo,
+        backgroundColor: SoupTheme.primaryGold,
+        foregroundColor: SoupTheme.textWhite,
+        icon: const Icon(Icons.info_outline),
+        label: const Text('クーポンについて'),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String value, String label, IconData icon) {
+    return Column(
+      children: [
+        Icon(
+          icon,
+          color: SoupTheme.primaryGold,
+          size: 24,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: SoupTheme.headingSmall.copyWith(
+            color: SoupTheme.textWhite,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          label,
+          style: SoupTheme.bodySmall.copyWith(
+            color: SoupTheme.textWhite.withOpacity(0.8),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAvailableCouponsTab() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: SoupTheme.primaryGold,
+        ),
+      );
+    }
+
+    if (_availableCoupons.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              SoupIcons.coupon,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: SoupTheme.spacingL),
+            Text(
+              '利用可能なクーポンがありません',
+              style: SoupTheme.headingSmall.copyWith(
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: SoupTheme.spacingS),
+            Text(
+              'ポイント交換や施工でクーポンを獲得しよう',
+              style: SoupTheme.bodyMedium.copyWith(
+                color: Colors.grey[500],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: SoupTheme.spacingL),
+            ElevatedButton.icon(
+              onPressed: () {
+                // ポイントページに遷移
+                DefaultTabController.of(context)?.animateTo(1);
+              },
+              style: SoupTheme.primaryButton,
+              icon: const Icon(SoupIcons.points),
+              label: const Text('ポイントを貯める'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadCoupons,
+      color: SoupTheme.primaryGold,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(SoupTheme.spacingM),
+        itemCount: _availableCoupons.length,
+        itemBuilder: (context, index) {
+          final coupon = _availableCoupons[index];
+          return AnimatedBuilder(
+            animation: _animationController,
+            builder: (context, child) {
+              return SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(1, 0),
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(
+                  parent: _animationController,
+                  curve: Interval(
+                    index * 0.1,
+                    (index * 0.1) + 0.3,
+                    curve: Curves.easeOutCubic,
+                  ),
+                )),
+                child: FadeTransition(
+                  opacity: Tween<double>(
+                    begin: 0.0,
+                    end: 1.0,
+                  ).animate(CurvedAnimation(
+                    parent: _animationController,
+                    curve: Interval(
+                      index * 0.1,
+                      (index * 0.1) + 0.3,
+                      curve: Curves.easeInOut,
+                    ),
+                  )),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: SoupTheme.spacingM),
+                    child: CouponCard(
+                      coupon: coupon,
+                      onUse: () => _useCoupon(coupon),
+                      isUsed: false,
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildRedeemedCouponsTab() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: SoupTheme.primaryGold,
+        ),
+      );
+    }
+
+    if (_redeemedCoupons.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.history,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: SoupTheme.spacingL),
+            Text(
+              '使用済みクーポンがありません',
+              style: SoupTheme.headingSmall.copyWith(
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: SoupTheme.spacingS),
+            Text(
+              'クーポンを使用すると履歴が表示されます',
+              style: SoupTheme.bodyMedium.copyWith(
+                color: Colors.grey[500],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(SoupTheme.spacingM),
+      itemCount: _redeemedCoupons.length,
+      itemBuilder: (context, index) {
+        final coupon = _redeemedCoupons[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: SoupTheme.spacingM),
+          child: CouponCard(
+            coupon: coupon,
+            onUse: null,
+            isUsed: true,
+          ),
+        );
+      },
+    );
+  }
+
+  int _calculateTotalSavings() {
+    return _availableCoupons.fold(0, (total, coupon) {
+      if (coupon.discountType == 'fixed') {
+        return total + coupon.discountValue.toInt();
       } else {
-        if (mounted) {
-          _showErrorSnackBar('更新に失敗しました');
-        }
+        // パーセント割引の場合は概算値
+        return total + (coupon.discountValue * 10).toInt();
       }
-    } catch (e) {
-      if (mounted) {
-        _showErrorSnackBar('エラーが発生しました');
+    });
+  }
+
+  Future<void> _useCoupon(CouponModel coupon) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SoupTheme.radiusL),
+        ),
+        title: Text(
+          'クーポンを使用',
+          style: SoupTheme.headingMedium,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              coupon.title,
+              style: SoupTheme.bodyLarge.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: SoupTheme.spacingS),
+            Text(
+              'このクーポンを使用しますか？\n使用後は元に戻せません。',
+              style: SoupTheme.bodyMedium,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('キャンセル'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: SoupTheme.primaryButton,
+            child: const Text('使用する'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await CouponStore.useCoupon(coupon.id);
+        await _loadCoupons();
+        
+        if (mounted) {
+          _showSuccessSnackBar('クーポンを使用しました');
+        }
+      } catch (e) {
+        if (mounted) {
+          _showErrorSnackBar('クーポンの使用に失敗しました');
+        }
       }
     }
+  }
+
+  void _showCouponInfo() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.9,
+        minChildSize: 0.5,
+        builder: (context, scrollController) {
+          return Container(
+            decoration: const BoxDecoration(
+              color: SoupTheme.surfaceWhite,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(SoupTheme.radiusL),
+              ),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(SoupTheme.spacingL),
+                    children: [
+                      Text(
+                        'クーポンについて',
+                        style: SoupTheme.headingMedium,
+                      ),
+                      const SizedBox(height: SoupTheme.spacingL),
+                      
+                      _buildInfoSection(
+                        'クーポンの獲得方法',
+                        [
+                          '• ポイント交換（500P〜）',
+                          '• 施工完了後の特典',
+                          '• キャンペーン参加',
+                          '• 誕生日特典',
+                        ],
+                      ),
+                      
+                      _buildInfoSection(
+                        '使用方法',
+                        [
+                          '• 店舗でクーポン画面を提示',
+                          '• 施工前に適用を確認',
+                          '• 有効期限内に使用',
+                          '• 他の割引との併用不可',
+                        ],
+                      ),
+                      
+                      _buildInfoSection(
+                        '注意事項',
+                        [
+                          '• 使用後の取り消しはできません',
+                          '• 有効期限を過ぎると自動的に無効',
+                          '• 一部サービスで使用不可の場合あり',
+                          '• 現金との交換はできません',
+                        ],
+                      ),
+                      
+                      const SizedBox(height: SoupTheme.spacingL),
+                      
+                      Container(
+                        padding: const EdgeInsets.all(SoupTheme.spacingL),
+                        decoration: BoxDecoration(
+                          color: SoupTheme.primaryGold.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(SoupTheme.radiusM),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              SoupIcons.service,
+                              color: SoupTheme.primaryGold,
+                              size: 32,
+                            ),
+                            const SizedBox(height: SoupTheme.spacingS),
+                            Text(
+                              'お得にSOUPのサービスを利用しよう！',
+                              style: SoupTheme.headingSmall.copyWith(
+                                color: SoupTheme.primaryNavy,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: SoupTheme.spacingS),
+                            Text(
+                              'ポイントを貯めてクーポンと交換し、\nさらにお得にコーティングサービスをご利用ください。',
+                              style: SoupTheme.bodyMedium,
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildInfoSection(String title, List<String> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: SoupTheme.headingSmall,
+        ),
+        const SizedBox(height: SoupTheme.spacingS),
+        ...items.map((item) => Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text(
+            item,
+            style: SoupTheme.bodyMedium,
+          ),
+        )),
+        const SizedBox(height: SoupTheme.spacingL),
+      ],
+    );
   }
 
   void _showSuccessSnackBar(String message) {
@@ -96,345 +573,6 @@ class _CouponsPageState extends State<CouponsPage> with TickerProviderStateMixin
         content: Text(message),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('クーポン'),
-        backgroundColor: const Color(0xFF1E3A8A),
-        foregroundColor: Colors.white,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: const Color(0xFFFFB300),
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          tabs: [
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.card_giftcard),
-                  const SizedBox(width: 4),
-                  Text('使用可能 (${_availableCoupons.length})'),
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.check_circle),
-                  const SizedBox(width: 4),
-                  Text('使用済み (${_redeemedCoupons.length})'),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildAvailableCouponsTab(),
-                _buildRedeemedCouponsTab(),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildAvailableCouponsTab() {
-    if (_availableCoupons.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.card_giftcard_outlined,
-              size: 64,
-              color: Colors.grey,
-            ),
-            SizedBox(height: 16),
-            Text(
-              '使用可能なクーポンがありません',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 16,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'ポイントを貯めてクーポンと交換しましょう！',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadCoupons,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _availableCoupons.length,
-        itemBuilder: (context, index) {
-          return _buildCouponCard(_availableCoupons[index], isAvailable: true);
-        },
-      ),
-    );
-  }
-
-  Widget _buildRedeemedCouponsTab() {
-    if (_redeemedCoupons.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 64,
-              color: Colors.grey,
-            ),
-            SizedBox(height: 16),
-            Text(
-              '使用済みクーポンがありません',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadCoupons,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _redeemedCoupons.length,
-        itemBuilder: (context, index) {
-          return _buildCouponCard(_redeemedCoupons[index], isAvailable: false);
-        },
-      ),
-    );
-  }
-
-  Widget _buildCouponCard(CouponModel coupon, {required bool isAvailable}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Card(
-        elevation: isAvailable ? 4 : 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: isAvailable
-                ? const LinearGradient(
-                    colors: [Color(0xFFFFB300), Color(0xFFFFC107)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : null,
-            color: isAvailable ? null : Colors.grey[100],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: isAvailable 
-                            ? Colors.white.withOpacity(0.2)
-                            : Colors.grey[300],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.local_gas_station,
-                        color: isAvailable ? Colors.white : Colors.grey[600],
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            coupon.title,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: isAvailable ? Colors.white : Colors.grey[800],
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            coupon.description,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isAvailable ? Colors.white70 : Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (isAvailable)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '${coupon.cost}pt',
-                          style: const TextStyle(
-                            color: Color(0xFFFFB300),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      )
-                    else
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          '使用済み',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isAvailable ? '発行日' : '使用日',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isAvailable ? Colors.white70 : Colors.grey[500],
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            isAvailable 
-                                ? coupon.displayIssuedDate
-                                : coupon.displayRedeemedDate,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: isAvailable ? Colors.white : Colors.grey[700],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (isAvailable)
-                      ElevatedButton(
-                        onPressed: () => _showUseConfirmDialog(coupon),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFFFFB300),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          '使用する',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      )
-                    else
-                      ElevatedButton(
-                        onPressed: () => _toggleCouponRedeem(coupon.id),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey[400],
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          '元に戻す',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showUseConfirmDialog(CouponModel coupon) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('クーポンを使用しますか？'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${coupon.title}を使用済みにします。'),
-            const SizedBox(height: 8),
-            Text(
-              coupon.description,
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              '※一度使用済みにすると、元に戻すことができます。',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('キャンセル'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _toggleCouponRedeem(coupon.id);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFB300),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('使用する'),
-          ),
-        ],
       ),
     );
   }

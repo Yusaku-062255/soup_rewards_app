@@ -1,56 +1,51 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/soup_theme.dart';
 import 'home_page.dart';
 import '../../../coupons/pages/coupons_page.dart';
 import '../../../qr_scan/presentation/pages/qr_scan_page.dart';
 import '../../../points/pages/points_detail_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 
-/// メインページ - BottomNavigationBar付きの画面管理
-class MainPage extends ConsumerStatefulWidget {
+/// SOUP公式アプリのメインページ
+/// ボトムナビゲーションを管理
+class MainPage extends StatefulWidget {
   const MainPage({super.key});
 
   @override
-  ConsumerState<MainPage> createState() => _MainPageState();
+  State<MainPage> createState() => _MainPageState();
 }
 
-class _MainPageState extends ConsumerState<MainPage> {
+class _MainPageState extends State<MainPage> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = [
     const HomePage(),
-    const CouponsPage(),
-    const QrScanPage(),
     const PointsDetailPage(),
+    const QrScanPage(),
+    const CouponsPage(),
     const ProfilePage(),
   ];
 
-  final List<BottomNavigationBarItem> _bottomNavItems = [
+  final List<BottomNavigationBarItem> _navItems = [
     const BottomNavigationBarItem(
-      icon: Icon(Icons.home_outlined),
-      activeIcon: Icon(Icons.home),
+      icon: Icon(SoupIcons.service),
       label: 'ホーム',
     ),
     const BottomNavigationBarItem(
-      icon: Icon(Icons.local_offer_outlined),
-      activeIcon: Icon(Icons.local_offer),
-      label: 'クーポン',
-    ),
-    const BottomNavigationBarItem(
-      icon: Icon(Icons.qr_code_scanner_outlined),
-      activeIcon: Icon(Icons.qr_code_scanner),
-      label: 'QRスキャン',
-    ),
-    const BottomNavigationBarItem(
-      icon: Icon(Icons.stars_outlined),
-      activeIcon: Icon(Icons.stars),
+      icon: Icon(SoupIcons.points),
       label: 'ポイント',
     ),
     const BottomNavigationBarItem(
-      icon: Icon(Icons.person_outline),
-      activeIcon: Icon(Icons.person),
-      label: 'マイページ',
+      icon: Icon(Icons.qr_code_scanner),
+      label: 'QRスキャン',
+    ),
+    const BottomNavigationBarItem(
+      icon: Icon(SoupIcons.coupon),
+      label: 'クーポン',
+    ),
+    const BottomNavigationBarItem(
+      icon: Icon(Icons.person),
+      label: 'プロフィール',
     ),
   ];
 
@@ -65,9 +60,9 @@ class _MainPageState extends ConsumerState<MainPage> {
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: AppColors.shadowLight,
-              offset: const Offset(0, -2),
+              color: SoupTheme.cardShadow,
               blurRadius: 8,
+              offset: const Offset(0, -2),
             ),
           ],
         ),
@@ -79,20 +74,15 @@ class _MainPageState extends ConsumerState<MainPage> {
             });
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: AppColors.white,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.grey400,
-          selectedLabelStyle: const TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 12,
+          backgroundColor: SoupTheme.surfaceWhite,
+          selectedItemColor: SoupTheme.primaryGold,
+          unselectedItemColor: Colors.grey[600],
+          selectedLabelStyle: SoupTheme.bodySmall.copyWith(
             fontWeight: FontWeight.w600,
           ),
-          unselectedLabelStyle: const TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 12,
-            fontWeight: FontWeight.w400,
-          ),
-          items: _bottomNavItems,
+          unselectedLabelStyle: SoupTheme.bodySmall,
+          elevation: 0,
+          items: _navItems,
         ),
       ),
     );

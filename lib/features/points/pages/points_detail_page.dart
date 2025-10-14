@@ -1,43 +1,75 @@
-// ポイント詳細画面（EV統合版）
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/soup_theme.dart';
 import '../../../core/services/points_service.dart';
 import '../../../core/services/vehicle_store.dart';
 import '../../../core/services/coupon_store.dart';
 import '../../../core/models/coupon_model.dart';
 
-class PointsDetailPage extends StatefulWidget {
+/// SOUP公式ポイント詳細ページ
+/// ポイント管理とランクシステムを統合
+class PointsDetailPage extends ConsumerStatefulWidget {
   const PointsDetailPage({super.key});
 
   @override
-  State<PointsDetailPage> createState() => _PointsDetailPageState();
+  ConsumerState<PointsDetailPage> createState() => _PointsDetailPageState();
 }
 
-class _PointsDetailPageState extends State<PointsDetailPage> {
+class _PointsDetailPageState extends ConsumerState<PointsDetailPage>
+    with TickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  
   bool _isLoading = false;
   bool _isExchanging = false;
-  Map<String, dynamic>? _pointsStats;
-  Map<String, dynamic>? _vehicleInfo;
 
   @override
   void initState() {
     super.initState();
+    _setupAnimations();
     _loadData();
     _checkLoginBonus();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _setupAnimations() {
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+    
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+    
+    _animationController.forward();
   }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     
     try {
-      final pointsStats = await PointsService.getPointsStats();
-      final vehicleInfo = await VehicleStore.getVehicleInfo();
-      
-      if (mounted) {
-        setState(() {
-          _pointsStats = pointsStats;
-          _vehicleInfo = vehicleInfo;
-        });
-      }
+      await Future.delayed(const Duration(milliseconds: 500)); // アニメーション用
+      final pointsService = ref.read(pointsServiceProvider.notifier);
+      await pointsService.loadPointsData();
     } catch (e) {
       if (mounted) {
         _showErrorSnackBar('データの読み込みに失敗しました');
@@ -51,44 +83,633 @@ class _PointsDetailPageState extends State<PointsDetailPage> {
 
   Future<void> _checkLoginBonus() async {
     try {
-      final result = await PointsService.checkLoginBonus();
+      final pointsService = ref.read(pointsServiceProvider.notifier);
+      final bonusAwarded = await pointsService.checkAndAwardLoginBonus();
       
-      if (mounted && result['isFirstLogin']) {
-        _showLoginBonusDialog(result['bonusAmount'], result['message']);
+      if (bonusAwarded && mounted) {
+        _showLoginBonusDialog();
       }
     } catch (e) {
       // ログインボーナスのエラーは無視
     }
   }
 
-  Future<void> _exchangeForFuelCoupon() async {
-    if (_pointsStats == null || _pointsStats!['currentPoints'] < 5000) return;
+  @override
+  Widget build(BuildContext context) {
+    final pointsService = ref.watch(pointsServiceProvider);
+    final vehicleStore = ref.watch(vehicleStoreProvider);
     
+    return Scaffold(
+      backgroundColor: SoupTheme.backgroundGray,
+      body: CustomScrollView(
+        slivers: [
+          // カスタムアプリバー
+          SliverAppBar(
+            expandedHeight: 200,
+            floating: false,
+            pinned: true,
+            backgroundColor: SoupTheme.primaryNavy,
+            foregroundColor: SoupTheme.textWhite,
+            flexibleSpace: FlexibleSpaceBar(
+              title: const Text(
+                'ポイント',
+                style: TextStyle(
+                  color: SoupTheme.textWhite,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: SoupTheme.navyGradient,
+                ),
+                child: Stack(
+                  children: [
+                    // 背景パターン
+                    Positioned.fill(
+                      child: Opacity(
+                        opacity: 0.1,
+                        child: Image.asset(
+                          'assets/soup_hero_section.webp',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    
+                    // ポイント表示
+                    Center(
+                      child: FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(height: 40),
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: SoupTheme.textWhite.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: SoupTheme.primaryGold.withOpacity(0.3),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      '${pointsService.currentPoints}',
+                                      style: SoupTheme.headingLarge.copyWith(
+                                        color: SoupTheme.primaryGold,
+                                        fontSize: 48,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      'ポイント',
+                                      style: SoupTheme.bodyLarge.copyWith(
+                                        color: SoupTheme.textWhite,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          // ランク情報
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.all(SoupTheme.spacingM),
+              child: _buildRankCard(pointsService, vehicleStore),
+            ),
+          ),
+          
+          // ポイント獲得方法
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.symmetric(
+                horizontal: SoupTheme.spacingM,
+                vertical: SoupTheme.spacingS,
+              ),
+              child: _buildEarnPointsSection(),
+            ),
+          ),
+          
+          // ポイント交換
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.symmetric(
+                horizontal: SoupTheme.spacingM,
+                vertical: SoupTheme.spacingS,
+              ),
+              child: _buildExchangeSection(pointsService),
+            ),
+          ),
+          
+          // ポイント履歴
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.symmetric(
+                horizontal: SoupTheme.spacingM,
+                vertical: SoupTheme.spacingS,
+              ),
+              child: _buildHistorySection(pointsService),
+            ),
+          ),
+          
+          // 下部余白
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 100),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRankCard(PointsService pointsService, VehicleStore vehicleStore) {
+    final currentRank = pointsService.currentRank;
+    final nextRank = pointsService.nextRank;
+    final progress = pointsService.rankProgress;
+    
+    return Card(
+      child: Container(
+        padding: const EdgeInsets.all(SoupTheme.spacingL),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(int.parse(currentRank['color'].replaceFirst('#', '0xFF'))),
+              Color(int.parse(currentRank['color'].replaceFirst('#', '0xFF'))).withOpacity(0.7),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(SoupTheme.radiusM),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Text(
+                  currentRank['icon'] ?? '🥉',
+                  style: const TextStyle(fontSize: 32),
+                ),
+                const SizedBox(width: SoupTheme.spacingM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '現在のランク',
+                        style: SoupTheme.bodySmall.copyWith(
+                          color: SoupTheme.textWhite.withOpacity(0.8),
+                        ),
+                      ),
+                      Text(
+                        currentRank['name'] ?? 'ブロンズ',
+                        style: SoupTheme.headingMedium.copyWith(
+                          color: SoupTheme.textWhite,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (vehicleStore.currentVehicle?.isEV == true)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: SoupTheme.primaryGold,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.electric_car,
+                          color: SoupTheme.textWhite,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'EV特典',
+                          style: SoupTheme.bodySmall.copyWith(
+                            color: SoupTheme.textWhite,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            
+            if (nextRank != null) ...[
+              const SizedBox(height: SoupTheme.spacingL),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '次のランクまで',
+                        style: SoupTheme.bodyMedium.copyWith(
+                          color: SoupTheme.textWhite.withOpacity(0.9),
+                        ),
+                      ),
+                      Text(
+                        '${nextRank['requiredPoints'] - pointsService.currentPoints}P',
+                        style: SoupTheme.bodyMedium.copyWith(
+                          color: SoupTheme.textWhite,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: SoupTheme.spacingS),
+                  LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: SoupTheme.textWhite.withOpacity(0.3),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      SoupTheme.primaryGold,
+                    ),
+                  ),
+                  const SizedBox(height: SoupTheme.spacingS),
+                  Row(
+                    children: [
+                      Text(
+                        nextRank['icon'] ?? '🥈',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        nextRank['name'] ?? 'シルバー',
+                        style: SoupTheme.bodySmall.copyWith(
+                          color: SoupTheme.textWhite.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEarnPointsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'ポイントを貯める',
+          style: SoupTheme.headingMedium,
+        ),
+        const SizedBox(height: SoupTheme.spacingM),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(SoupTheme.spacingM),
+            child: Column(
+              children: [
+                _buildEarnMethodItem(
+                  icon: SoupIcons.coating,
+                  title: 'コーティング施工',
+                  description: '施工料金の1%をポイント還元',
+                  points: '100円 = 1P',
+                  color: SoupTheme.primaryGold,
+                ),
+                const Divider(),
+                _buildEarnMethodItem(
+                  icon: SoupIcons.service,
+                  title: 'メンテナンス',
+                  description: 'メンテナンス料金の0.5%をポイント還元',
+                  points: '200円 = 1P',
+                  color: SoupTheme.primaryNavy,
+                ),
+                const Divider(),
+                _buildEarnMethodItem(
+                  icon: Icons.electric_car,
+                  title: 'EV車両特典',
+                  description: 'EV車両は全てのポイントが2倍',
+                  points: '通常の2倍',
+                  color: Colors.green,
+                ),
+                const Divider(),
+                _buildEarnMethodItem(
+                  icon: SoupIcons.time,
+                  title: 'ログインボーナス',
+                  description: '毎日のアプリ起動で10ポイント',
+                  points: '1日 = 10P',
+                  color: SoupTheme.accentOrange,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEarnMethodItem({
+    required IconData icon,
+    required String title,
+    required String description,
+    required String points,
+    required Color color,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: SoupTheme.spacingS),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: SoupTheme.spacingM),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: SoupTheme.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  description,
+                  style: SoupTheme.bodySmall.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 4,
+            ),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              points,
+              style: SoupTheme.bodySmall.copyWith(
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExchangeSection(PointsService pointsService) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'ポイント交換',
+          style: SoupTheme.headingMedium,
+        ),
+        const SizedBox(height: SoupTheme.spacingM),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(SoupTheme.spacingM),
+            child: Column(
+              children: [
+                _buildExchangeItem(
+                  title: '500円割引クーポン',
+                  requiredPoints: 500,
+                  description: '次回施工時に使用可能',
+                  onExchange: () => _exchangePoints(500, '500円割引クーポン'),
+                  canExchange: pointsService.currentPoints >= 500,
+                ),
+                const Divider(),
+                _buildExchangeItem(
+                  title: '1000円割引クーポン',
+                  requiredPoints: 1000,
+                  description: '次回施工時に使用可能',
+                  onExchange: () => _exchangePoints(1000, '1000円割引クーポン'),
+                  canExchange: pointsService.currentPoints >= 1000,
+                ),
+                const Divider(),
+                _buildExchangeItem(
+                  title: '洗車サービス無料券',
+                  requiredPoints: 2000,
+                  description: '手洗い洗車サービス1回分',
+                  onExchange: () => _exchangePoints(2000, '洗車サービス無料券'),
+                  canExchange: pointsService.currentPoints >= 2000,
+                ),
+                const Divider(),
+                _buildExchangeItem(
+                  title: 'コーティング10%OFF',
+                  requiredPoints: 5000,
+                  description: '全コーティングメニュー対象',
+                  onExchange: () => _exchangePoints(5000, 'コーティング10%OFF'),
+                  canExchange: pointsService.currentPoints >= 5000,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExchangeItem({
+    required String title,
+    required int requiredPoints,
+    required String description,
+    required VoidCallback onExchange,
+    required bool canExchange,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: SoupTheme.spacingS),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: SoupTheme.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  description,
+                  style: SoupTheme.bodySmall.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${requiredPoints}P',
+                  style: SoupTheme.bodyMedium.copyWith(
+                    color: SoupTheme.primaryGold,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: canExchange && !_isExchanging ? onExchange : null,
+            style: canExchange
+                ? SoupTheme.primaryButton
+                : SoupTheme.disabledButton,
+            child: _isExchanging
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: SoupTheme.textWhite,
+                    ),
+                  )
+                : const Text('交換'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistorySection(PointsService pointsService) {
+    final history = pointsService.pointsHistory;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'ポイント履歴',
+          style: SoupTheme.headingMedium,
+        ),
+        const SizedBox(height: SoupTheme.spacingM),
+        Card(
+          child: history.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(SoupTheme.spacingXL),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          SoupIcons.points,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: SoupTheme.spacingM),
+                        Text(
+                          'ポイント履歴がありません',
+                          style: SoupTheme.bodyLarge.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : Column(
+                  children: history.take(10).map((item) {
+                    return ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: item['type'] == 'earn'
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          item['type'] == 'earn'
+                              ? Icons.add
+                              : Icons.remove,
+                          color: item['type'] == 'earn'
+                              ? Colors.green
+                              : Colors.red,
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
+                        item['description'] ?? '',
+                        style: SoupTheme.bodyMedium,
+                      ),
+                      subtitle: Text(
+                        _formatDate(DateTime.parse(item['date'])),
+                        style: SoupTheme.bodySmall.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      trailing: Text(
+                        '${item['type'] == 'earn' ? '+' : '-'}${item['points']}P',
+                        style: SoupTheme.bodyMedium.copyWith(
+                          color: item['type'] == 'earn'
+                              ? Colors.green
+                              : Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _exchangePoints(int points, String itemName) async {
     setState(() => _isExchanging = true);
     
     try {
-      // ポイント使用
-      final success = await PointsService.spendPoints(5000, '給油券と交換');
+      final pointsService = ref.read(pointsServiceProvider.notifier);
+      await pointsService.exchangePoints(points, itemName);
       
-      if (success) {
-        // クーポン発行
-        final coupon = CouponModel.createFuelCoupon();
-        await CouponStore.addCoupon(coupon);
-        
-        // データ再読み込み
+      // クーポンを生成
+      final coupon = CouponModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: itemName,
+        description: 'ポイント交換で獲得したクーポンです',
+        discountType: 'fixed',
+        discountValue: points == 500 ? 500 : points == 1000 ? 1000 : 0,
+        expiryDate: DateTime.now().add(const Duration(days: 90)),
+        isUsed: false,
+        category: 'points_exchange',
+      );
+      
+      await CouponStore.addCoupon(coupon);
+      
+      if (mounted) {
+        _showSuccessSnackBar('${itemName}と交換しました！');
         await _loadData();
-        
-        if (mounted) {
-          _showSuccessDialog();
-        }
-      } else {
-        if (mounted) {
-          _showErrorSnackBar('交換に失敗しました');
-        }
       }
     } catch (e) {
       if (mounted) {
-        _showErrorSnackBar('交換処理でエラーが発生しました');
+        _showErrorSnackBar('交換に失敗しました');
       }
     } finally {
       if (mounted) {
@@ -97,78 +718,74 @@ class _PointsDetailPageState extends State<PointsDetailPage> {
     }
   }
 
-  void _showLoginBonusDialog(int bonusAmount, String message) {
+  void _showLoginBonusDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.celebration, color: Color(0xFFFFB300), size: 28),
-            SizedBox(width: 8),
-            Text('ログインボーナス！'),
-          ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SoupTheme.radiusL),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              '+${bonusAmount}pt',
-              style: const TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFFFFB300),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: SoupTheme.goldGradient,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                SoupIcons.points,
+                color: SoupTheme.textWhite,
+                size: 48,
               ),
             ),
-            const SizedBox(height: 8),
-            Text(message),
+            const SizedBox(height: SoupTheme.spacingL),
+            Text(
+              'ログインボーナス',
+              style: SoupTheme.headingMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: SoupTheme.spacingS),
+            Text(
+              '10ポイントを獲得しました！',
+              style: SoupTheme.bodyLarge.copyWith(
+                color: SoupTheme.primaryGold,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: SoupTheme.spacingS),
+            Text(
+              '毎日アプリを開いてポイントを貯めよう',
+              style: SoupTheme.bodyMedium.copyWith(
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
         actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFB300),
-              foregroundColor: Colors.white,
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: SoupTheme.primaryButton,
+              child: const Text('OK'),
             ),
-            child: const Text('ありがとう！'),
           ),
         ],
       ),
     );
   }
 
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 28),
-            SizedBox(width: 8),
-            Text('交換完了！'),
-          ],
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('🎉 給油券と交換しました！'),
-            SizedBox(height: 8),
-            Text('(-5000pt)', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-            SizedBox(height: 12),
-            Text('クーポン画面から確認できます。', style: TextStyle(fontSize: 12, color: Colors.grey)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -183,461 +800,7 @@ class _PointsDetailPageState extends State<PointsDetailPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('ポイント詳細'),
-        backgroundColor: const Color(0xFF1E3A8A),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _pointsStats == null
-              ? const Center(child: Text('ポイント情報を読み込めませんでした'))
-              : RefreshIndicator(
-                  onRefresh: _loadData,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ポイント残高カード
-                        _buildPointsCard(),
-                        const SizedBox(height: 16),
-                        
-                        // ランク情報カード
-                        _buildRankCard(),
-                        const SizedBox(height: 16),
-                        
-                        // EV特典情報（EV車の場合のみ表示）
-                        if (_vehicleInfo?['isEv'] == true) ...[
-                          _buildEvBenefitCard(),
-                          const SizedBox(height: 16),
-                        ],
-                        
-                        // 交換ボタン
-                        _buildExchangeButton(),
-                        const SizedBox(height: 24),
-                        
-                        // 履歴セクション
-                        _buildHistorySection(),
-                      ],
-                    ),
-                  ),
-                ),
-    );
-  }
-
-  Widget _buildPointsCard() {
-    final currentPoints = _pointsStats!['currentPoints'] ?? 0;
-    final totalEarned = _pointsStats!['totalEarned'] ?? 0;
-    
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF1E3A8A).withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '現在のポイント',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '$currentPoints',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: Text(
-                  'pt',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 18,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '累計獲得: ${totalEarned}pt',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRankCard() {
-    final currentRank = _pointsStats!['currentRank'];
-    final nextRank = _pointsStats!['nextRank'];
-    final progress = _pointsStats!['progress'] ?? 0.0;
-    final pointsToNext = _pointsStats!['pointsToNextRank'] ?? 0;
-    
-    if (currentRank == null) return const SizedBox.shrink();
-    
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  currentRank['icon'] ?? '🥉',
-                  style: const TextStyle(fontSize: 24),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Color(int.parse(currentRank['color'].replaceFirst('#', '0xFF'))),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    currentRank['name'] ?? 'ブロンズ',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                if (_vehicleInfo?['isEv'] == true)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFB300).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'EV ${currentRank['evMultiplier']}x',
-                      style: const TextStyle(
-                        color: Color(0xFFFFB300),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            if (nextRank != null && pointsToNext > 0) ...[
-              const SizedBox(height: 16),
-              Text(
-                '次のランクまで',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: Colors.grey[200],
-                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFB300)),
-                      minHeight: 8,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${pointsToNext}pt',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFFFB300),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${nextRank['name']} まで',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFFFFB300),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ] else if (nextRank == null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFB300).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.emoji_events, color: Color(0xFFFFB300)),
-                    SizedBox(width: 8),
-                    Text(
-                      '最高ランク達成！',
-                      style: TextStyle(
-                        color: Color(0xFFFFB300),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEvBenefitCard() {
-    final currentRank = _pointsStats!['currentRank'];
-    final evMultiplier = currentRank?['evMultiplier'] ?? 1.0;
-    
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            colors: [
-              const Color(0xFFFFB300).withOpacity(0.1),
-              const Color(0xFFFFB300).withOpacity(0.05),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFB300),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.electric_car,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'EV特典',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFFFB300),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '登録されたEV車により、ポイント獲得時に ${evMultiplier}倍 のボーナスが適用されます！',
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFB300).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '例: 100pt獲得 → ${(100 * evMultiplier).round()}pt に増量',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFFFB300),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExchangeButton() {
-    final currentPoints = _pointsStats!['currentPoints'] ?? 0;
-    final canExchange = currentPoints >= 5000;
-    
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: (canExchange && !_isExchanging) ? _exchangeForFuelCoupon : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: canExchange ? const Color(0xFFFFB300) : Colors.grey[300],
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: canExchange ? 4 : 0,
-        ),
-        child: _isExchanging
-            ? const CircularProgressIndicator(color: Colors.white)
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.local_gas_station),
-                  const SizedBox(width: 8),
-                  Text(
-                    canExchange 
-                        ? '給油券と交換 (5000pt)'
-                        : '給油券と交換 (5000pt必要)',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-
-  Widget _buildHistorySection() {
-    final recentTransactions = _pointsStats!['recentTransactions'] as List? ?? [];
-    
-    if (recentTransactions.isEmpty) {
-      return Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: const Padding(
-          padding: EdgeInsets.all(24),
-          child: Center(
-            child: Column(
-              children: [
-                Icon(Icons.history, size: 48, color: Colors.grey),
-                SizedBox(height: 8),
-                Text(
-                  'まだ履歴がありません',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-    
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '最近の履歴',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ...recentTransactions.take(5).map((transaction) {
-              final amount = transaction['amount'] ?? 0;
-              final description = transaction['description'] ?? '';
-              final type = transaction['type'] ?? '';
-              final timestamp = DateTime.tryParse(transaction['timestamp'] ?? '') ?? DateTime.now();
-              
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: amount > 0 ? Colors.green : Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            description,
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                          Text(
-                            '${timestamp.month}/${timestamp.day} ${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      '${amount > 0 ? '+' : ''}${amount}pt',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: amount > 0 ? Colors.green : Colors.red,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ],
-        ),
-      ),
-    );
+  String _formatDate(DateTime date) {
+    return '${date.year}/${date.month}/${date.day}';
   }
 }
