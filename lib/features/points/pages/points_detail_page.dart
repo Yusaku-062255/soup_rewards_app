@@ -67,24 +67,30 @@ class _PointsDetailPageState extends State<PointsDetailPage> {
     setState(() => _isExchanging = true);
     
     try {
-      // ポイント使用
-      final success = await PointsService.spendPoints(5000, '給油券と交換');
-      
-      if (success) {
-        // クーポン発行
-        final coupon = CouponModel.createFuelCoupon();
-        await CouponStore.addCoupon(coupon);
-        
-        // データ再読み込み
-        await _loadData();
-        
+      final coupon = CouponModel.createFuelCoupon();
+      final couponAdded = await CouponStore.addCoupon(coupon);
+
+      if (!couponAdded) {
         if (mounted) {
-          _showSuccessDialog();
+          _showErrorSnackBar('クーポンの発行に失敗しました。既に同じクーポンをお持ちの可能性があります。');
         }
-      } else {
+        return;
+      }
+
+      final success = await PointsService.spendPoints(5000, '給油券と交換');
+
+      if (!success) {
+        await CouponStore.removeCoupon(coupon.id);
         if (mounted) {
           _showErrorSnackBar('交換に失敗しました');
         }
+        return;
+      }
+
+      await _loadData();
+
+      if (mounted) {
+        _showSuccessDialog();
       }
     } catch (e) {
       if (mounted) {
@@ -327,7 +333,7 @@ class _PointsDetailPageState extends State<PointsDetailPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Color(int.parse(currentRank['color'].replaceFirst('#', '0xFF'))),
+                    color: _parseRankColor(currentRank['color'] as String?),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -639,5 +645,25 @@ class _PointsDetailPageState extends State<PointsDetailPage> {
         ),
       ),
     );
+  }
+
+  Color _parseRankColor(String? colorString) {
+    const fallbackColor = Color(0xFFCD7F32);
+
+    if (colorString == null || colorString.isEmpty) {
+      return fallbackColor;
+    }
+
+    final sanitized = colorString
+        .trim()
+        .replaceFirst('#', '')
+        .replaceFirst(RegExp(r'^0x', caseSensitive: false), '');
+    final hex = sanitized.length == 6 ? 'FF$sanitized' : sanitized;
+
+    try {
+      return Color(int.parse(hex, radix: 16));
+    } catch (_) {
+      return fallbackColor;
+    }
   }
 }

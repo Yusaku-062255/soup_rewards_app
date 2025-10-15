@@ -227,7 +227,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Color(int.parse(currentRank['color'].replaceFirst('#', '0xFF'))),
+                        color: _parseRankColor(currentRank['color'] as String?),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -548,5 +548,25 @@ class _HomePageState extends ConsumerState<HomePage> {
         ],
       ),
     );
+  }
+
+  Color _parseRankColor(String? colorString) {
+    const fallbackColor = Color(0xFFCD7F32);
+
+    if (colorString == null || colorString.isEmpty) {
+      return fallbackColor;
+    }
+
+    final sanitized = colorString
+        .trim()
+        .replaceFirst('#', '')
+        .replaceFirst(RegExp(r'^0x', caseSensitive: false), '');
+    final hex = sanitized.length == 6 ? 'FF$sanitized' : sanitized;
+
+    try {
+      return Color(int.parse(hex, radix: 16));
+    } catch (_) {
+      return fallbackColor;
+    }
   }
 }
