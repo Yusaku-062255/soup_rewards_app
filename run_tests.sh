@@ -7,7 +7,8 @@ echo "日時: $(date)"
 echo ""
 
 # プロジェクトディレクトリに移動
-cd /home/ubuntu/soup_rewards_app
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 # テスト結果ディレクトリを作成
 mkdir -p test_results

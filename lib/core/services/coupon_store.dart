@@ -194,20 +194,47 @@ class CouponStore {
   static Future<Map<String, dynamic>> getStats() async {
     try {
       final coupons = await loadCoupons();
-      final available = coupons.where((c) => !c.isRedeemed && !c.isExpired).length;
-      final redeemed = coupons.where((c) => c.isRedeemed).length;
-      final expired = coupons.where((c) => c.isExpired).length;
-      
+      final availableCoupons =
+          coupons.where((c) => !c.isRedeemed && !c.isExpired).toList();
+      final redeemedCoupons = coupons.where((c) => c.isRedeemed).toList();
+      final expiredCoupons = coupons.where((c) => c.isExpired).toList();
+      final totalValue = coupons.fold<int>(0, (sum, c) => sum + c.cost);
+      final redeemedValue =
+          redeemedCoupons.fold<int>(0, (sum, c) => sum + c.cost);
+
+      final availableCount = availableCoupons.length;
+      final redeemedCount = redeemedCoupons.length;
+      final expiredCount = expiredCoupons.length;
+      final totalCount = coupons.length;
+
       return {
-        'total': coupons.length,
-        'available': available,
-        'redeemed': redeemed,
-        'expired': expired,
+        // 既存互換用のキー
+        'total': totalCount,
+        'available': availableCount,
+        'redeemed': redeemedCount,
+        'expired': expiredCount,
+        // 新しい統計情報
+        'totalCoupons': totalCount,
+        'availableCoupons': availableCount,
+        'redeemedCoupons': redeemedCount,
+        'expiredCoupons': expiredCount,
+        'totalValue': totalValue,
+        'redeemedValue': redeemedValue,
         'lastChecked': DateTime.now().toIso8601String(),
       };
     } catch (e) {
       return {
         'error': e.toString(),
+        'total': 0,
+        'available': 0,
+        'redeemed': 0,
+        'expired': 0,
+        'totalCoupons': 0,
+        'availableCoupons': 0,
+        'redeemedCoupons': 0,
+        'expiredCoupons': 0,
+        'totalValue': 0,
+        'redeemedValue': 0,
         'lastChecked': DateTime.now().toIso8601String(),
       };
     }
