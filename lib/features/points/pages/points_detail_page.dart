@@ -68,7 +68,7 @@ class _PointsDetailPageState extends ConsumerState<PointsDetailPage>
     
     try {
       await Future.delayed(const Duration(milliseconds: 500)); // アニメーション用
-      final pointsService = ref.read(pointsServiceProvider.notifier);
+      final pointsService = ref.read(pointsProvider.notifier);
       await pointsService.loadPointsData();
     } catch (e) {
       if (mounted) {
@@ -83,7 +83,7 @@ class _PointsDetailPageState extends ConsumerState<PointsDetailPage>
 
   Future<void> _checkLoginBonus() async {
     try {
-      final pointsService = ref.read(pointsServiceProvider.notifier);
+      final pointsService = ref.read(pointsProvider.notifier);
       final bonusAwarded = await pointsService.checkAndAwardLoginBonus();
       
       if (bonusAwarded && mounted) {
@@ -96,7 +96,7 @@ class _PointsDetailPageState extends ConsumerState<PointsDetailPage>
 
   @override
   Widget build(BuildContext context) {
-    final pointsService = ref.watch(pointsServiceProvider);
+    final pointsService = ref.watch(pointsProvider);
     final vehicleStore = ref.watch(vehicleStoreProvider);
     
     return Scaffold(
@@ -686,7 +686,7 @@ class _PointsDetailPageState extends ConsumerState<PointsDetailPage>
     setState(() => _isExchanging = true);
     
     try {
-      final pointsService = ref.read(pointsServiceProvider.notifier);
+      final pointsService = ref.read(pointsProvider.notifier);
       await pointsService.exchangePoints(points, itemName);
       
       // クーポンを生成

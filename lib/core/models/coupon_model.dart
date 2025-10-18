@@ -1,108 +1,114 @@
-// クーポンモデル
 import 'dart:convert';
 
 class CouponModel {
   final String id;
   final String title;
   final String description;
-  final int cost;              // 必要ポイント
-  final bool isRedeemed;       // 交換済みかどうか
-  final DateTime issuedAt;     // 発行日時
-  final DateTime? redeemedAt;  // 交換日時
+  final String category; // 例: 'points_exchange', 'service_completion', 'campaign', 'birthday'
+  final String discountType; // 例: 'fixed', 'percentage'
+  final double discountValue; // 例: 500.0 (固定割引), 10.0 (10%割引)
+  final DateTime expiryDate;
+  final bool isUsed; // isRedeemedをisUsedに改名
+  final int? cost; // ポイント交換に必要なコスト
 
   const CouponModel({
     required this.id,
     required this.title,
     required this.description,
-    required this.cost,
-    this.isRedeemed = false,
-    required this.issuedAt,
-    this.redeemedAt,
+    required this.category,
+    required this.discountType,
+    required this.discountValue,
+    required this.expiryDate,
+    this.isUsed = false,
+    this.cost,
   });
 
-  // JSON変換
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'title': title,
       'description': description,
+      'category': category,
+      'discountType': discountType,
+      'discountValue': discountValue,
+      'expiryDate': expiryDate.toIso8601String(),
+      'isUsed': isUsed,
       'cost': cost,
-      'isRedeemed': isRedeemed,
-      'issuedAt': issuedAt.toIso8601String(),
-      'redeemedAt': redeemedAt?.toIso8601String(),
     };
   }
 
   factory CouponModel.fromJson(Map<String, dynamic> json) {
+    // 既存のキーとの互換性を保ちつつ、新しいフィールドに対応
+    final String id = json['id'] ?? json['couponId'] ?? 'unknown_id';
+    final String title = json['title'] ?? json['couponName'] ?? 'Unknown Coupon';
+    final String description = json['description'] ?? json['details'] ?? 'No description available.';
+    final String category = json['category'] ?? 'general';
+    final String discountType = json['discountType'] ?? (json['value'] != null && json['value'] is int ? 'fixed' : 'percentage');
+    final double discountValue = (json['discountValue'] ?? json['value'] ?? 0).toDouble();
+    
+    DateTime expiryDate;
+    if (json['expiryDate'] != null) {
+      expiryDate = DateTime.parse(json['expiryDate']);
+    } else if (json['expiresAt'] != null) {
+      expiryDate = DateTime.parse(json['expiresAt']);
+    } else {
+      // デフォルトで1年後の期限を設定
+      expiryDate = DateTime.now().add(const Duration(days: 365));
+    }
+
+    final bool isUsed = json['isUsed'] ?? json['isRedeemed'] ?? false;
+    final int? cost = json['cost'] ?? json['requiredPoints'];
+
     return CouponModel(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      cost: json['cost'],
-      isRedeemed: json['isRedeemed'] ?? false,
-      issuedAt: DateTime.parse(json['issuedAt']),
-      redeemedAt: json['redeemedAt'] != null 
-          ? DateTime.parse(json['redeemedAt']) 
-          : null,
+      id: id,
+      title: title,
+      description: description,
+      category: category,
+      discountType: discountType,
+      discountValue: discountValue,
+      expiryDate: expiryDate,
+      isUsed: isUsed,
+      cost: cost,
     );
   }
 
-  // JSON文字列変換
   String toJsonString() => jsonEncode(toJson());
 
   factory CouponModel.fromJsonString(String jsonString) {
     return CouponModel.fromJson(jsonDecode(jsonString));
   }
 
-  // コピー作成
   CouponModel copyWith({
     String? id,
     String? title,
     String? description,
+    String? category,
+    String? discountType,
+    double? discountValue,
+    DateTime? expiryDate,
+    bool? isUsed,
     int? cost,
-    bool? isRedeemed,
-    DateTime? issuedAt,
-    DateTime? redeemedAt,
   }) {
     return CouponModel(
       id: id ?? this.id,
       title: title ?? this.title,
       description: description ?? this.description,
+      category: category ?? this.category,
+      discountType: discountType ?? this.discountType,
+      discountValue: discountValue ?? this.discountValue,
+      expiryDate: expiryDate ?? this.expiryDate,
+      isUsed: isUsed ?? this.isUsed,
       cost: cost ?? this.cost,
-      isRedeemed: isRedeemed ?? this.isRedeemed,
-      issuedAt: issuedAt ?? this.issuedAt,
-      redeemedAt: redeemedAt ?? this.redeemedAt,
     );
   }
 
-  // 交換済みにする
-  CouponModel redeem() {
+  CouponModel use() {
     return copyWith(
-      isRedeemed: true,
-      redeemedAt: DateTime.now(),
+      isUsed: true,
     );
   }
 
-  // 表示用の状態
-  String get statusText {
-    return isRedeemed ? '使用済み' : '使用可能';
-  }
-
-  // 表示用の日付
-  String get displayIssuedDate {
-    return '${issuedAt.year}/${issuedAt.month.toString().padLeft(2, '0')}/${issuedAt.day.toString().padLeft(2, '0')}';
-  }
-
-  String get displayRedeemedDate {
-    if (redeemedAt == null) return '';
-    return '${redeemedAt!.year}/${redeemedAt!.month.toString().padLeft(2, '0')}/${redeemedAt!.day.toString().padLeft(2, '0')}';
-  }
-
-  // 有効期限チェック（将来拡張用）
-  bool get isExpired {
-    // 現在は無期限だが、将来的に有効期限を追加可能
-    return false;
-  }
+  bool get isExpired => DateTime.now().isAfter(expiryDate);
 
   @override
   bool operator ==(Object other) {
@@ -111,10 +117,12 @@ class CouponModel {
         other.id == id &&
         other.title == title &&
         other.description == description &&
-        other.cost == cost &&
-        other.isRedeemed == isRedeemed &&
-        other.issuedAt == issuedAt &&
-        other.redeemedAt == redeemedAt;
+        other.category == category &&
+        other.discountType == discountType &&
+        other.discountValue == discountValue &&
+        other.expiryDate == expiryDate &&
+        other.isUsed == isUsed &&
+        other.cost == cost;
   }
 
   @override
@@ -123,26 +131,18 @@ class CouponModel {
       id,
       title,
       description,
+      category,
+      discountType,
+      discountValue,
+      expiryDate,
+      isUsed,
       cost,
-      isRedeemed,
-      issuedAt,
-      redeemedAt,
     );
   }
 
   @override
   String toString() {
-    return 'CouponModel(id: $id, title: $title, cost: ${cost}pt, isRedeemed: $isRedeemed)';
-  }
-
-  // デフォルトクーポンファクトリー
-  static CouponModel createFuelCoupon() {
-    return CouponModel(
-      id: 'fuel_coupon_5000',
-      title: '給油券',
-      description: '¥5000相当の給油券（店頭渡し）',
-      cost: 5000,
-      issuedAt: DateTime.now(),
-    );
+    return 'CouponModel(id: $id, title: $title, category: $category, value: $discountValue, isUsed: $isUsed, expired: $isExpired)';
   }
 }
+
