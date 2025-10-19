@@ -1,0 +1,44 @@
+{
+  "sources": {
+    "soup_hero_section.webp": {
+      "url": "https://soup.tokushima.jp/",
+      "description": "SOUP公式サイトのキービジュアルセクション",
+      "usage": "アプリのヒーローセクション背景",
+      "date_captured": "2025-10-14"
+    },
+    "soup_interior_section.webp": {
+      "url": "https://soup.tokushima.jp/",
+      "description": "SOUP店内画像とサービス紹介セクション",
+      "usage": "店舗情報ページ、サービス紹介",
+      "date_captured": "2025-10-14"
+    },
+    "soup_coating_gallery.webp": {
+      "url": "https://soup.tokushima.jp/",
+      "description": "コーティング施工ギャラリー",
+      "usage": "施工実績ギャラリー",
+      "date_captured": "2025-10-14"
+    }
+  },
+  "brand_colors": {
+    "primary_navy": "#1A2332",
+    "primary_gold": "#D4AF37",
+    "accent_orange": "#FF8C00",
+    "surface_white": "#FFFFFF",
+    "text_black": "#000000",
+    "background_gray": "#F5F5F5"
+  },
+  "brand_messages": {
+    "main_catchphrase": "キレイな車は幸せを呼ぶ！",
+    "sub_catchphrase": "徳島のカーコーティング専門店 SOUP（スープ）",
+    "mission": "車を大切にするという事業を通じて、幸せなクオリティタイムを応援",
+    "tagline": "航空機にも使用されているコーティング剤"
+  },
+  "contact_info": {
+    "store_name": "SOUP（スープ）",
+    "address": "〒771-2302 徳島県三好市三野町加茂野宮445−1",
+    "phone": "088-377-2016",
+    "fax": "088-382-5485",
+    "website": "https://soup.tokushima.jp/"
+  },
+  "copyright_notice": "すべての画像とコンテンツは SOUP（スープ）公式サイトより引用。アプリ統合目的での使用。"
+}

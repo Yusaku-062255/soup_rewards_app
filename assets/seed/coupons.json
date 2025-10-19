@@ -1,0 +1,142 @@
+{
+  "coupons": [
+    {
+      "id": "fuel_voucher_5000",
+      "title": "給油券",
+      "subtitle": "ガソリンスタンドで使える",
+      "description": "提携ガソリンスタンドで使用できる5,000円分の給油券です。",
+      "value": 5000,
+      "points_required": 5000,
+      "type": "fuel",
+      "validity_days": 180,
+      "terms": [
+        "提携ガソリンスタンドでのみ使用可能",
+        "現金との交換はできません",
+        "有効期限は発行から180日間",
+        "紛失・盗難の場合の再発行はできません"
+      ],
+      "partner_stations": [
+        "エネオス",
+        "出光",
+        "コスモ石油"
+      ],
+      "image": "fuel_voucher.png",
+      "available": true
+    },
+    {
+      "id": "coating_discount_10000",
+      "title": "コーティング割引券",
+      "subtitle": "次回施工時に使える",
+      "description": "次回のコーティング施工時に10,000円割引になる特別券です。",
+      "value": 10000,
+      "points_required": 8000,
+      "type": "service",
+      "validity_days": 365,
+      "terms": [
+        "コーティング施工時のみ使用可能",
+        "他の割引との併用不可",
+        "有効期限は発行から1年間",
+        "予約時に事前にお伝えください"
+      ],
+      "applicable_services": [
+        "system_x_ceramic",
+        "g_guard_glass",
+        "bike_coating"
+      ],
+      "image": "coating_discount.png",
+      "available": true
+    },
+    {
+      "id": "car_wash_free",
+      "title": "洗車無料券",
+      "subtitle": "プロの手洗い洗車",
+      "description": "SOUPの丁寧な手洗い洗車を無料で受けられる券です。",
+      "value": 3000,
+      "points_required": 2500,
+      "type": "service",
+      "validity_days": 90,
+      "terms": [
+        "手洗い洗車のみ対象",
+        "要事前予約",
+        "有効期限は発行から90日間",
+        "コーティング車優先"
+      ],
+      "applicable_services": [
+        "hand_wash"
+      ],
+      "image": "car_wash.png",
+      "available": true
+    },
+    {
+      "id": "maintenance_kit",
+      "title": "メンテナンスキット",
+      "subtitle": "コーティング車専用",
+      "description": "コーティング施工車専用のメンテナンス用品セットです。",
+      "value": 8000,
+      "points_required": 6000,
+      "type": "product",
+      "validity_days": 30,
+      "terms": [
+        "店頭受け取りのみ",
+        "コーティング施工車のお客様限定",
+        "有効期限は発行から30日間",
+        "在庫状況により変更の場合あり"
+      ],
+      "contents": [
+        "専用シャンプー",
+        "マイクロファイバークロス",
+        "メンテナンススプレー",
+        "取扱説明書"
+      ],
+      "image": "maintenance_kit.png",
+      "available": true
+    },
+    {
+      "id": "premium_inspection",
+      "title": "プレミアム点検",
+      "subtitle": "コーティング状態チェック",
+      "description": "コーティングの状態を専門スタッフが詳しく点検し、アドバイスします。",
+      "value": 5000,
+      "points_required": 3000,
+      "type": "service",
+      "validity_days": 120,
+      "terms": [
+        "コーティング施工車のみ対象",
+        "要事前予約",
+        "点検結果レポート付き",
+        "有効期限は発行から120日間"
+      ],
+      "applicable_services": [
+        "coating_inspection"
+      ],
+      "image": "premium_inspection.png",
+      "available": true
+    }
+  ],
+  "categories": {
+    "fuel": {
+      "name": "給油券",
+      "description": "ガソリンスタンドで使える券",
+      "icon": "local_gas_station",
+      "color": "#FF8C00"
+    },
+    "service": {
+      "name": "サービス券",
+      "description": "SOUPのサービスで使える券",
+      "icon": "build",
+      "color": "#1A2332"
+    },
+    "product": {
+      "name": "商品券",
+      "description": "メンテナンス用品など",
+      "icon": "shopping_bag",
+      "color": "#D4AF37"
+    }
+  },
+  "exchange_rules": {
+    "minimum_points": 1000,
+    "maximum_daily_exchanges": 3,
+    "point_expiry_days": 365,
+    "coupon_expiry_notification_days": 30
+  }
+}

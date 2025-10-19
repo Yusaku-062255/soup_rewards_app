@@ -1,0 +1,111 @@
+{
+  "gallery": [
+    {
+      "id": "gallery_001",
+      "title": "トヨタ RAV4 System X セラミックコーティング",
+      "description": "新車のRAV4にSystem Xセラミックコーティングを施工。深い艶と光沢を実現しました。",
+      "vehicle": {
+        "make": "トヨタ",
+        "model": "RAV4",
+        "year": 2023,
+        "color": "パールホワイト"
+      },
+      "service": "system_x_ceramic",
+      "before_image": "gallery_001_before.jpg",
+      "after_image": "gallery_001_after.jpg",
+      "date": "2024-03-15",
+      "tags": ["新車", "SUV", "セラミック", "ホワイト"]
+    },
+    {
+      "id": "gallery_002", 
+      "title": "レクサス LS G.Guard ガラスコーティング",
+      "description": "高級セダンのレクサスLSにG.Guardガラスコーティングを施工。上品な仕上がりになりました。",
+      "vehicle": {
+        "make": "レクサス",
+        "model": "LS",
+        "year": 2022,
+        "color": "ブラック"
+      },
+      "service": "g_guard_glass",
+      "before_image": "gallery_002_before.jpg", 
+      "after_image": "gallery_002_after.jpg",
+      "date": "2024-03-10",
+      "tags": ["高級車", "セダン", "ガラス", "ブラック"]
+    },
+    {
+      "id": "gallery_003",
+      "title": "ホンダ CBR1000RR バイクコーティング",
+      "description": "スーパースポーツバイクのCBR1000RRにSystem Xバイクコーティングを施工しました。",
+      "vehicle": {
+        "make": "ホンダ",
+        "model": "CBR1000RR",
+        "year": 2023,
+        "color": "レッド"
+      },
+      "service": "bike_coating",
+      "before_image": "gallery_003_before.jpg",
+      "after_image": "gallery_003_after.jpg", 
+      "date": "2024-03-08",
+      "tags": ["バイク", "スポーツ", "レッド", "ホンダ"]
+    },
+    {
+      "id": "gallery_004",
+      "title": "BMW X5 フルコーティング",
+      "description": "BMW X5にボディ・ホイール・ガラスの全面コーティングを施工。トータルケアで美しさを追求。",
+      "vehicle": {
+        "make": "BMW",
+        "model": "X5",
+        "year": 2023,
+        "color": "ミネラルグレー"
+      },
+      "service": "system_x_ceramic",
+      "before_image": "gallery_004_before.jpg",
+      "after_image": "gallery_004_after.jpg",
+      "date": "2024-03-05",
+      "tags": ["輸入車", "SUV", "フルコーティング", "グレー"]
+    },
+    {
+      "id": "gallery_005",
+      "title": "日産 GT-R プレミアムコーティング",
+      "description": "スーパーカーGT-RにSystem Xプレミアムコーティングを施工。圧倒的な輝きを実現しました。",
+      "vehicle": {
+        "make": "日産",
+        "model": "GT-R",
+        "year": 2022,
+        "color": "ガンメタリック"
+      },
+      "service": "system_x_ceramic",
+      "before_image": "gallery_005_before.jpg",
+      "after_image": "gallery_005_after.jpg",
+      "date": "2024-03-01",
+      "tags": ["スーパーカー", "スポーツ", "プレミアム", "ガンメタ"]
+    },
+    {
+      "id": "gallery_006",
+      "title": "メルセデス・ベンツ Eクラス ガラスコーティング",
+      "description": "メルセデス・ベンツEクラスにG.Guardガラスコーティングを施工。エレガントな仕上がりです。",
+      "vehicle": {
+        "make": "メルセデス・ベンツ",
+        "model": "Eクラス",
+        "year": 2023,
+        "color": "オブシディアンブラック"
+      },
+      "service": "g_guard_glass",
+      "before_image": "gallery_006_before.jpg",
+      "after_image": "gallery_006_after.jpg",
+      "date": "2024-02-28",
+      "tags": ["輸入車", "セダン", "高級", "ブラック"]
+    }
+  ],
+  "stats": {
+    "total_vehicles": 4000,
+    "years_experience": 20,
+    "customer_satisfaction": 98.5,
+    "repeat_customers": 85
+  },
+  "featured_work": [
+    "gallery_001",
+    "gallery_002", 
+    "gallery_005"
+  ]
+}
