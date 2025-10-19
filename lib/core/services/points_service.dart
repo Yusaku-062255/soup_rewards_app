@@ -1,6 +1,6 @@
-// ポイント管理サービス
 import 'dart:developer' as developer;
 import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ポイント取引の種類
@@ -134,64 +134,120 @@ class RankInfo {
   }
 }
 
-// ポイントサービス
-class PointsService {
+// PointsServiceの状態を定義
+class PointsState {
+  final int currentPoints;
+  final int totalEarnedPoints;
+  final List<PointTransaction> history;
+  final RankInfo currentRank;
+  final RankInfo? nextRank;
+  final double rankProgress;
+  final int pointsToNextRank;
+
+  PointsState({
+    this.currentPoints = 0,
+    this.totalEarnedPoints = 0,
+    this.history = const [],
+    required this.currentRank,
+    this.nextRank,
+    this.rankProgress = 0.0,
+    this.pointsToNextRank = 0,
+  });
+
+  PointsState copyWith({
+    int? currentPoints,
+    int? totalEarnedPoints,
+    List<PointTransaction>? history,
+    RankInfo? currentRank,
+    RankInfo? nextRank,
+    double? rankProgress,
+    int? pointsToNextRank,
+  }) {
+    return PointsState(
+      currentPoints: currentPoints ?? this.currentPoints,
+      totalEarnedPoints: totalEarnedPoints ?? this.totalEarnedPoints,
+      history: history ?? this.history,
+      currentRank: currentRank ?? this.currentRank,
+      nextRank: nextRank ?? this.nextRank,
+      rankProgress: rankProgress ?? this.rankProgress,
+      pointsToNextRank: pointsToNextRank ?? this.pointsToNextRank,
+    );
+  }
+}
+
+// PointsServiceNotifierを定義
+class PointsServiceNotifier extends StateNotifier<PointsState> {
   static const String _pointsKey = 'user_points';
   static const String _totalEarnedKey = 'total_earned_points';
   static const String _transactionsKey = 'point_transactions';
   static const String _lastLoginKey = 'last_login_date';
 
-  // 現在のポイント残高を取得
-  static Future<int> getCurrentPoints() async {
+  PointsServiceNotifier() : super(PointsState(currentRank: RankInfo.ranks.first)) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    await loadPointsData();
+  }
+
+  // Public API
+  int get currentPoints => state.currentPoints;
+  List<PointTransaction> get pointsHistory => state.history;
+  RankInfo get currentRank => state.currentRank;
+  RankInfo? get nextRank => state.nextRank;
+  double get rankProgress => state.rankProgress;
+  int get pointsToNextRank => state.pointsToNextRank;
+
+  Future<void> loadPointsData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getInt(_pointsKey) ?? 0;
+      final currentPoints = prefs.getInt(_pointsKey) ?? 0;
+      final totalEarned = prefs.getInt(_totalEarnedKey) ?? 0;
+      final transactions = await _getTransactionHistory(limit: 10);
+      final currentRank = RankInfo.getRankByPoints(totalEarned);
+      final nextRank = RankInfo.getNextRank(totalEarned);
+      final rankProgress = _getRankProgress(totalEarned, currentRank);
+      final pointsToNext = _getPointsToNextRank(totalEarned, nextRank);
+
+      state = state.copyWith(
+        currentPoints: currentPoints,
+        totalEarnedPoints: totalEarned,
+        history: transactions,
+        currentRank: currentRank,
+        nextRank: nextRank,
+        rankProgress: rankProgress,
+        pointsToNextRank: pointsToNext,
+      );
     } catch (e) {
-      developer.log('[SOUP] Error getting current points: $e');
-      return 0;
+      developer.log('[SOUP] Error loading points data: $e');
     }
   }
 
-  // 累計獲得ポイントを取得
-  static Future<int> getTotalEarnedPoints() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getInt(_totalEarnedKey) ?? 0;
-    } catch (e) {
-      developer.log('[SOUP] Error getting total earned points: $e');
-      return 0;
-    }
-  }
-
-  // ポイントを追加
-  static Future<bool> addPoints(
+  Future<bool> addPoints(
     int amount,
     String description, {
     PointTransactionType type = PointTransactionType.earn,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final currentPoints = await getCurrentPoints();
-      final totalEarned = await getTotalEarnedPoints();
-      
-      // ポイント更新
-      final newPoints = currentPoints + amount;
+      final newPoints = state.currentPoints + amount;
       final newTotalEarned = type == PointTransactionType.earn || type == PointTransactionType.bonus || type == PointTransactionType.evBonus
-          ? totalEarned + amount
-          : totalEarned;
+          ? state.totalEarnedPoints + amount
+          : state.totalEarnedPoints;
       
       await prefs.setInt(_pointsKey, newPoints);
       await prefs.setInt(_totalEarnedKey, newTotalEarned);
       
-      // 取引記録を追加
-      await _addTransaction(PointTransaction(
+      final transaction = PointTransaction(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         type: type,
         amount: amount,
         description: description,
         timestamp: DateTime.now(),
-      ));
+      );
+      await _addTransaction(transaction);
       
+      await loadPointsData(); // 状態を再読み込み
       developer.log('[SOUP] Points added: $amount ($description) - New balance: $newPoints');
       return true;
     } catch (e) {
@@ -200,30 +256,28 @@ class PointsService {
     }
   }
 
-  // ポイントを使用
-  static Future<bool> spendPoints(int amount, String description) async {
+  Future<bool> spendPoints(int amount, String description) async {
     try {
-      final currentPoints = await getCurrentPoints();
-      
-      if (currentPoints < amount) {
-        developer.log('[SOUP] Insufficient points: $currentPoints < $amount');
+      if (state.currentPoints < amount) {
+        developer.log('[SOUP] Insufficient points: ${state.currentPoints} < $amount');
         return false;
       }
       
       final prefs = await SharedPreferences.getInstance();
-      final newPoints = currentPoints - amount;
+      final newPoints = state.currentPoints - amount;
       
       await prefs.setInt(_pointsKey, newPoints);
       
-      // 取引記録を追加
-      await _addTransaction(PointTransaction(
+      final transaction = PointTransaction(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         type: PointTransactionType.spend,
         amount: -amount,
         description: description,
         timestamp: DateTime.now(),
-      ));
+      );
+      await _addTransaction(transaction);
       
+      await loadPointsData(); // 状態を再読み込み
       developer.log('[SOUP] Points spent: $amount ($description) - New balance: $newPoints');
       return true;
     } catch (e) {
@@ -232,8 +286,7 @@ class PointsService {
     }
   }
 
-  // 取引履歴を取得
-  static Future<List<PointTransaction>> getTransactionHistory({
+  Future<List<PointTransaction>> _getTransactionHistory({
     int limit = 50,
   }) async {
     try {
@@ -244,7 +297,6 @@ class PointsService {
           .map((json) => PointTransaction.fromJson(jsonDecode(json)))
           .toList();
       
-      // 日付順でソート（新しい順）
       transactions.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       
       return transactions.take(limit).toList();
@@ -254,15 +306,13 @@ class PointsService {
     }
   }
 
-  // 取引記録を追加
-  static Future<void> _addTransaction(PointTransaction transaction) async {
+  Future<void> _addTransaction(PointTransaction transaction) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final transactionsJson = prefs.getStringList(_transactionsKey) ?? [];
       
       transactionsJson.add(jsonEncode(transaction.toJson()));
       
-      // 最新100件のみ保持
       if (transactionsJson.length > 100) {
         transactionsJson.removeRange(0, transactionsJson.length - 100);
       }
@@ -273,23 +323,7 @@ class PointsService {
     }
   }
 
-  // 現在のランク情報を取得
-  static Future<RankInfo> getCurrentRank() async {
-    final totalEarned = await getTotalEarnedPoints();
-    return RankInfo.getRankByPoints(totalEarned);
-  }
-
-  // 次のランク情報を取得
-  static Future<RankInfo?> getNextRank() async {
-    final totalEarned = await getTotalEarnedPoints();
-    return RankInfo.getNextRank(totalEarned);
-  }
-
-  // ランク進捗を取得（0.0-1.0）
-  static Future<double> getRankProgress() async {
-    final totalEarned = await getTotalEarnedPoints();
-    final currentRank = RankInfo.getRankByPoints(totalEarned);
-    
+  double _getRankProgress(int totalEarned, RankInfo currentRank) {
     if (currentRank == RankInfo.ranks.last) {
       return 1.0; // 最高ランク
     }
@@ -300,20 +334,14 @@ class PointsService {
     return progress.clamp(0.0, 1.0);
   }
 
-  // 次のランクまでの必要ポイント
-  static Future<int> getPointsToNextRank() async {
-    final totalEarned = await getTotalEarnedPoints();
-    final nextRank = RankInfo.getNextRank(totalEarned);
-    
+  int _getPointsToNextRank(int totalEarned, RankInfo? nextRank) {
     if (nextRank == null) {
       return 0; // 最高ランク
     }
-    
     return nextRank.minPoints - totalEarned;
   }
 
-  // ログインボーナスをチェック
-  static Future<Map<String, dynamic>> checkLoginBonus() async {
+  Future<bool> checkAndAwardLoginBonus() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final lastLoginStr = prefs.getString(_lastLoginKey);
@@ -321,42 +349,25 @@ class PointsService {
       final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
       
       if (lastLoginStr != todayStr) {
-        // 今日初回ログイン
         await prefs.setString(_lastLoginKey, todayStr);
         
-        // ログインボーナスを付与
         const bonusAmount = 100;
         await addPoints(
           bonusAmount,
           '毎日ログインボーナス',
           type: PointTransactionType.bonus,
         );
-        
-        return {
-          'isFirstLogin': true,
-          'bonusAmount': bonusAmount,
-          'message': '毎日ログインボーナス ${bonusAmount}pt を獲得しました！',
-        };
+        return true;
       }
-      
-      return {
-        'isFirstLogin': false,
-        'bonusAmount': 0,
-        'message': '今日のログインボーナスは既に受け取り済みです',
-      };
+      return false;
     } catch (e) {
       developer.log('[SOUP] Error checking login bonus: $e');
-      return {
-        'isFirstLogin': false,
-        'bonusAmount': 0,
-        'message': 'ログインボーナスの確認に失敗しました',
-      };
+      return false;
     }
   }
 
-  // EV特典ポイントを付与
-  static Future<bool> addEvBonus(int baseAmount, String description) async {
-    final currentRank = await getCurrentRank();
+  Future<bool> addEvBonus(int baseAmount, String description) async {
+    final currentRank = state.currentRank;
     final bonusAmount = (baseAmount * currentRank.evMultiplier).round();
     
     return await addPoints(
@@ -366,48 +377,11 @@ class PointsService {
     );
   }
 
-  // ポイント統計情報を取得
-  static Future<Map<String, dynamic>> getPointsStats() async {
-    try {
-      final currentPoints = await getCurrentPoints();
-      final totalEarned = await getTotalEarnedPoints();
-      final currentRank = await getCurrentRank();
-      final nextRank = await getNextRank();
-      final progress = await getRankProgress();
-      final pointsToNext = await getPointsToNextRank();
-      final transactions = await getTransactionHistory(limit: 10);
-      
-      return {
-        'currentPoints': currentPoints,
-        'totalEarned': totalEarned,
-        'currentRank': {
-          'name': currentRank.name,
-          'icon': currentRank.icon,
-          'color': currentRank.color,
-          'evMultiplier': currentRank.evMultiplier,
-        },
-        'nextRank': nextRank != null ? {
-          'name': nextRank.name,
-          'icon': nextRank.icon,
-          'color': nextRank.color,
-        } : null,
-        'progress': progress,
-        'pointsToNextRank': pointsToNext,
-        'recentTransactions': transactions.map((t) => {
-          'type': t.type.displayName,
-          'amount': t.amount,
-          'description': t.description,
-          'timestamp': t.timestamp.toIso8601String(),
-        }).toList(),
-      };
-    } catch (e) {
-      developer.log('[SOUP] Error getting points stats: $e');
-      return {};
-    }
+  Future<bool> exchangePoints(int points, String itemName) async {
+    return await spendPoints(points, '$itemName (${points}pt消費)');
   }
 
-  // データをリセット（デバッグ用）
-  static Future<bool> resetAllData() async {
+  Future<bool> resetAllData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_pointsKey);
@@ -415,6 +389,7 @@ class PointsService {
       await prefs.remove(_transactionsKey);
       await prefs.remove(_lastLoginKey);
       
+      await loadPointsData(); // 状態をリセット後に再読み込み
       developer.log('[SOUP] All points data reset');
       return true;
     } catch (e) {
@@ -423,3 +398,9 @@ class PointsService {
     }
   }
 }
+
+// Riverpodプロバイダ
+final pointsProvider = StateNotifierProvider<PointsServiceNotifier, PointsState>((ref) {
+  return PointsServiceNotifier();
+});
+

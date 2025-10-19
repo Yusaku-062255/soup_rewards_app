@@ -4,12 +4,12 @@ class CouponModel {
   final String id;
   final String title;
   final String description;
-  final String category; // 例: 'points_exchange', 'service_completion', 'campaign', 'birthday'
-  final String discountType; // 例: 'fixed', 'percentage'
-  final double discountValue; // 例: 500.0 (固定割引), 10.0 (10%割引)
+  final String category;
+  final String discountType;
+  final double discountValue;
   final DateTime expiryDate;
-  final bool isUsed; // isRedeemedをisUsedに改名
-  final int? cost; // ポイント交換に必要なコスト
+  final bool isUsed;
+  final int? cost;
 
   const CouponModel({
     required this.id,
@@ -22,6 +22,10 @@ class CouponModel {
     this.isUsed = false,
     this.cost,
   });
+
+  // 互換ゲッター
+  bool get isRedeemed => isUsed; // 互換エイリアス
+  DateTime? get expiresAtCompat => expiryDate;
 
   Map<String, dynamic> toJson() {
     return {
@@ -38,26 +42,24 @@ class CouponModel {
   }
 
   factory CouponModel.fromJson(Map<String, dynamic> json) {
-    // 既存のキーとの互換性を保ちつつ、新しいフィールドに対応
-    final String id = json['id'] ?? json['couponId'] ?? 'unknown_id';
-    final String title = json['title'] ?? json['couponName'] ?? 'Unknown Coupon';
-    final String description = json['description'] ?? json['details'] ?? 'No description available.';
-    final String category = json['category'] ?? 'general';
-    final String discountType = json['discountType'] ?? (json['value'] != null && json['value'] is int ? 'fixed' : 'percentage');
-    final double discountValue = (json['discountValue'] ?? json['value'] ?? 0).toDouble();
+    final String id = json['id'] ?? json['couponId'] ?? '';
+    final String title = json['title'] ?? json['couponName'] ?? '';
+    final String description = json['description'] ?? json['detail'] ?? '';
+    final String category = json['category'] ?? json['type'] ?? 'other';
+    final String discountType = json['discountType'] ?? (json['percent'] != null ? 'percent' : 'fixed');
+    final double discountValue = (json['discountValue'] ?? json['value'] ?? json['percent'] ?? 0).toDouble();
     
     DateTime expiryDate;
     if (json['expiryDate'] != null) {
-      expiryDate = DateTime.parse(json['expiryDate']);
+      expiryDate = DateTime.tryParse(json['expiryDate']) ?? DateTime.now().add(const Duration(days: 30));
     } else if (json['expiresAt'] != null) {
-      expiryDate = DateTime.parse(json['expiresAt']);
+      expiryDate = DateTime.tryParse(json['expiresAt']) ?? DateTime.now().add(const Duration(days: 30));
     } else {
-      // デフォルトで1年後の期限を設定
-      expiryDate = DateTime.now().add(const Duration(days: 365));
+      expiryDate = DateTime.now().add(const Duration(days: 30));
     }
 
     final bool isUsed = json['isUsed'] ?? json['isRedeemed'] ?? false;
-    final int? cost = json['cost'] ?? json['requiredPoints'];
+    final int? cost = (json['cost'] ?? json['requiredPoints']) is num ? (json['cost'] ?? json['requiredPoints']).toInt() : null;
 
     return CouponModel(
       id: id,
@@ -108,6 +110,7 @@ class CouponModel {
     );
   }
 
+  // 有効期限チェック
   bool get isExpired => DateTime.now().isAfter(expiryDate);
 
   @override
@@ -144,5 +147,18 @@ class CouponModel {
   String toString() {
     return 'CouponModel(id: $id, title: $title, category: $category, value: $discountValue, isUsed: $isUsed, expired: $isExpired)';
   }
+
+  // デフォルトクーポンファクトリー
+  static CouponModel createFuelCoupon() => CouponModel(
+    id: 'fuel_coupon_500',
+    title: 'ガソリン500円引き',
+    description: 'ポイント交換クーポン',
+    category: 'fuel',
+    discountType: 'fixed',
+    discountValue: 500,
+    expiryDate: DateTime.now().add(const Duration(days: 90)),
+    isUsed: false,
+    cost: 500,
+  );
 }
 

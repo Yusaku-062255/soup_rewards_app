@@ -1,4 +1,3 @@
-// クーポンの永続化サービス
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,7 +6,6 @@ import '../models/coupon_model.dart';
 class CouponStore {
   static const String _couponsKey = 'user_coupons';
 
-  // クーポンリストを保存
   static Future<bool> saveCoupons(List<CouponModel> coupons) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -27,7 +25,6 @@ class CouponStore {
     }
   }
 
-  // クーポンリストを読み込み
   static Future<List<CouponModel>> loadCoupons() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -51,12 +48,10 @@ class CouponStore {
     }
   }
 
-  // クーポンを追加
   static Future<bool> addCoupon(CouponModel coupon) async {
     try {
       final coupons = await loadCoupons();
       
-      // 重複チェック
       if (coupons.any((c) => c.id == coupon.id)) {
         developer.log('[SOUP] Coupon ${coupon.id} already exists');
         return false;
@@ -70,8 +65,7 @@ class CouponStore {
     }
   }
 
-  // クーポンの交換状態を切り替え
-  static Future<bool> toggleRedeem(String couponId) async {
+  static Future<bool> toggleUsed(String couponId) async {
     try {
       final coupons = await loadCoupons();
       final index = coupons.indexWhere((c) => c.id == couponId);
@@ -82,24 +76,21 @@ class CouponStore {
       }
       
       final coupon = coupons[index];
-      coupons[index] = coupon.isRedeemed 
-          ? coupon.copyWith(isRedeemed: false, redeemedAt: null)
-          : coupon.redeem();
+      coupons[index] = coupon.copyWith(isUsed: !coupon.isUsed);
       
       final success = await saveCoupons(coupons);
       
       if (success) {
-        developer.log('[SOUP] Coupon $couponId redeemed: ${coupons[index].isRedeemed}');
+        developer.log('[SOUP] Coupon $couponId used: ${coupons[index].isUsed}');
       }
       
       return success;
     } catch (e) {
-      developer.log('[SOUP] Error toggling coupon redeem: $e');
+      developer.log('[SOUP] Error toggling coupon used: $e');
       return false;
     }
   }
 
-  // 特定のクーポンを取得
   static Future<CouponModel?> getCoupon(String couponId) async {
     try {
       final coupons = await loadCoupons();
@@ -113,29 +104,26 @@ class CouponStore {
     }
   }
 
-  // 未使用クーポンを取得
   static Future<List<CouponModel>> getAvailableCoupons() async {
     try {
       final coupons = await loadCoupons();
-      return coupons.where((c) => !c.isRedeemed && !c.isExpired).toList();
+      return coupons.where((c) => !c.isUsed && !c.isExpired).toList();
     } catch (e) {
       developer.log('[SOUP] Error getting available coupons: $e');
       return [];
     }
   }
 
-  // 使用済みクーポンを取得
-  static Future<List<CouponModel>> getRedeemedCoupons() async {
+  static Future<List<CouponModel>> getUsedCoupons() async {
     try {
       final coupons = await loadCoupons();
-      return coupons.where((c) => c.isRedeemed).toList();
+      return coupons.where((c) => c.isUsed).toList();
     } catch (e) {
-      developer.log('[SOUP] Error getting redeemed coupons: $e');
+      developer.log('[SOUP] Error getting used coupons: $e');
       return [];
     }
   }
 
-  // クーポンを削除
   static Future<bool> removeCoupon(String couponId) async {
     try {
       final coupons = await loadCoupons();
@@ -154,7 +142,6 @@ class CouponStore {
     }
   }
 
-  // 全クーポンを削除
   static Future<bool> clearAllCoupons() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -171,13 +158,11 @@ class CouponStore {
     }
   }
 
-  // デフォルトクーポンを初期化
   static Future<bool> initializeDefaultCoupons() async {
     try {
       final existingCoupons = await loadCoupons();
       
-      // 給油券クーポンが存在しない場合のみ追加
-      if (!existingCoupons.any((c) => c.id == 'fuel_coupon_5000')) {
+      if (!existingCoupons.any((c) => c.id == 'fuel_coupon_500')) {
         final fuelCoupon = CouponModel.createFuelCoupon();
         await addCoupon(fuelCoupon);
         developer.log('[SOUP] Default fuel coupon initialized');
@@ -190,45 +175,28 @@ class CouponStore {
     }
   }
 
-  // 統計情報取得
   static Future<Map<String, dynamic>> getStats() async {
     try {
       final coupons = await loadCoupons();
-      final availableCoupons =
-          coupons.where((c) => !c.isRedeemed && !c.isExpired).toList();
-      final redeemedCoupons = coupons.where((c) => c.isRedeemed).toList();
-      final expiredCoupons = coupons.where((c) => c.isExpired).toList();
-      final totalValue = coupons.fold<int>(0, (sum, c) => sum + c.cost);
-      final redeemedValue =
-          redeemedCoupons.fold<int>(0, (sum, c) => sum + c.cost);
-
-      final availableCount = availableCoupons.length;
-      final redeemedCount = redeemedCoupons.length;
-      final expiredCount = expiredCoupons.length;
-      final totalCount = coupons.length;
+      final available = coupons.where((c) => !c.isUsed && !c.isExpired).toList();
+      final redeemed = coupons.where((c) => c.isUsed).toList();
+      final expired = coupons.where((c) => c.isExpired).toList();
+      
+      final totalValue = coupons.fold<int>(0, (sum, c) => sum + (c.cost ?? 0));
+      final redeemedValue = redeemed.fold<int>(0, (sum, c) => sum + (c.cost ?? 0));
 
       return {
-        // 既存互換用のキー
-        'total': totalCount,
-        'available': availableCount,
-        'redeemed': redeemedCount,
-        'expired': expiredCount,
-        // 新しい統計情報
-        'totalCoupons': totalCount,
-        'availableCoupons': availableCount,
-        'redeemedCoupons': redeemedCount,
-        'expiredCoupons': expiredCount,
+        'totalCoupons': coupons.length,
+        'availableCoupons': available.length,
+        'redeemedCoupons': redeemed.length,
+        'expiredCoupons': expired.length,
         'totalValue': totalValue,
         'redeemedValue': redeemedValue,
         'lastChecked': DateTime.now().toIso8601String(),
       };
     } catch (e) {
+      developer.log('[SOUP] Error getting coupon stats: $e');
       return {
-        'error': e.toString(),
-        'total': 0,
-        'available': 0,
-        'redeemed': 0,
-        'expired': 0,
         'totalCoupons': 0,
         'availableCoupons': 0,
         'redeemedCoupons': 0,
@@ -236,7 +204,9 @@ class CouponStore {
         'totalValue': 0,
         'redeemedValue': 0,
         'lastChecked': DateTime.now().toIso8601String(),
+        'error': e.toString(),
       };
     }
   }
 }
+
