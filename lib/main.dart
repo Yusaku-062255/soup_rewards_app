@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:soup_rewards_app/core/observability/sentry_bootstrap.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/theme/app_theme.dart';
@@ -6,6 +7,7 @@ import 'core/constants/app_constants.dart';
 import 'features/home/presentation/pages/main_page.dart';
 
 void main() async {
+  await runWithSentry(() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Firebase初期化（本番環境では設定ファイルが必要）
@@ -16,11 +18,12 @@ void main() async {
     debugPrint('Firebase initialization skipped: $e');
   }
   
-  runApp(
-    const ProviderScope(
+    return const ProviderScope(
       child: SoupRewardsApp(),
-    ),
-  );
+    );
+  });
+  // Sentryの接続確認メッセージを送信 (デバッグ時のみ)
+  sendSentrySmokeTestMessage();
 }
 
 class SoupRewardsApp extends StatelessWidget {
