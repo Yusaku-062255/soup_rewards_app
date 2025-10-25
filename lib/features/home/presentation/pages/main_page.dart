@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'home_page.dart';
-import '../../../coupon/presentation/pages/coupon_page.dart';
+import '../../../coupons/presentation/pages/coupons_page.dart';
 import '../../../qr_scan/presentation/pages/qr_scan_page.dart';
 import '../../../points/presentation/pages/points_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
@@ -20,7 +20,7 @@ class _MainPageState extends ConsumerState<MainPage> {
 
   final List<Widget> _pages = [
     const HomePage(),
-    const CouponPage(),
+    const CouponsPage(),
     const QrScanPage(),
     const PointsPage(),
     const ProfilePage(),
