@@ -6,22 +6,25 @@ import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
 import 'features/home/presentation/pages/main_page.dart';
 
-void main() async {
-  await runWithSentry(() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Firebase初期化（本番環境では設定ファイルが必要）
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    // Firebase設定がない場合はスキップ（開発環境）
-    debugPrint('Firebase initialization skipped: $e');
-  }
-  
-    return const ProviderScope(
-      child: SoupRewardsApp(),
+void main() {
+  runWithSentry(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+
+    // Firebase初期化（本番環境では設定ファイルが必要）
+    try {
+      await Firebase.initializeApp();
+    } catch (e) {
+      // Firebase設定がない場合はスキップ（開発環境）
+      debugPrint('Firebase initialization skipped: $e');
+    }
+
+    runApp(
+      const ProviderScope(
+        child: SoupRewardsApp(),
+      ),
     );
   });
+
   // Sentryの接続確認メッセージを送信 (デバッグ時のみ)
   sendSentrySmokeTestMessage();
 }
@@ -51,3 +54,4 @@ class SoupRewardsApp extends StatelessWidget {
     );
   }
 }
+
