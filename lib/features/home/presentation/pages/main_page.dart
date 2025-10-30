@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'home_page.dart';
+import '../../../gacha/presentation/pages/gacha_page.dart';
+import '../../../maintenance/presentation/pages/maintenance_page.dart';
 import '../../../coupon/presentation/pages/coupon_page.dart';
-import '../../../qr_scan/presentation/pages/qr_scan_page.dart';
-import '../../../points/presentation/pages/points_page.dart';
-import '../../../profile/presentation/pages/profile_page.dart';
+import '../../../support/presentation/pages/support_page.dart';
 
 /// メインページ - BottomNavigationBar付きの画面管理
 class MainPage extends ConsumerStatefulWidget {
@@ -20,10 +20,10 @@ class _MainPageState extends ConsumerState<MainPage> {
 
   final List<Widget> _pages = [
     const HomePage(),
+    const GachaPage(),
+    const MaintenancePage(),
     const CouponPage(),
-    const QrScanPage(),
-    const PointsPage(),
-    const ProfilePage(),
+    const SupportPage(),
   ];
 
   final List<BottomNavigationBarItem> _bottomNavItems = [
@@ -33,24 +33,24 @@ class _MainPageState extends ConsumerState<MainPage> {
       label: 'ホーム',
     ),
     const BottomNavigationBarItem(
+      icon: Icon(Icons.card_giftcard_outlined),
+      activeIcon: Icon(Icons.card_giftcard),
+      label: 'ガチャ',
+    ),
+    const BottomNavigationBarItem(
+      icon: Icon(Icons.directions_car_outlined),
+      activeIcon: Icon(Icons.directions_car),
+      label: 'メンテ',
+    ),
+    const BottomNavigationBarItem(
       icon: Icon(Icons.local_offer_outlined),
       activeIcon: Icon(Icons.local_offer),
       label: 'クーポン',
     ),
     const BottomNavigationBarItem(
-      icon: Icon(Icons.qr_code_scanner_outlined),
-      activeIcon: Icon(Icons.qr_code_scanner),
-      label: 'QRスキャン',
-    ),
-    const BottomNavigationBarItem(
-      icon: Icon(Icons.stars_outlined),
-      activeIcon: Icon(Icons.stars),
-      label: 'ポイント',
-    ),
-    const BottomNavigationBarItem(
-      icon: Icon(Icons.person_outline),
-      activeIcon: Icon(Icons.person),
-      label: 'マイページ',
+      icon: Icon(Icons.support_agent_outlined),
+      activeIcon: Icon(Icons.support_agent),
+      label: 'サポート',
     ),
   ];
 

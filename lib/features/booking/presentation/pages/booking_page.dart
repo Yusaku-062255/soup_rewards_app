@@ -14,86 +14,36 @@ class BookingPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final bookingsAsync = ref.watch(bookingsProvider);
 
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.primary,
-              AppColors.white,
-            ],
-            stops: [0.0, 0.3],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // ヘッダー
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '予約管理',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(
-                                color: AppColors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'あなたの予約を確認',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AppColors.white.withOpacity(0.9),
-                                  ),
-                        ),
-                      ],
+    return Container(
+      color: AppColors.white,
+      child: Column(
+        children: [
+          // 予約追加ボタン
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const CreateBookingPage(),
                     ),
-                    IconButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const CreateBookingPage(),
-                          ),
-                        );
-                      },
-                      icon: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.add,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
+                  );
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('新しい予約を作成'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),
+            ),
+          ),
 
-              // 予約リスト
-              Expanded(
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      topRight: Radius.circular(24),
-                    ),
-                  ),
-                  child: bookingsAsync.when(
+          // 予約リスト
+          Expanded(
+            child: bookingsAsync.when(
                     data: (bookings) {
                       if (bookings.isEmpty) {
                         return Center(
@@ -189,13 +139,10 @@ class BookingPage extends ConsumerWidget {
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
