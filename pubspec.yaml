@@ -52,6 +52,9 @@ dependencies:
   # セキュリティ
   crypto: ^3.0.3
 
+  # エラー監視
+  sentry_flutter: ^7.18.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

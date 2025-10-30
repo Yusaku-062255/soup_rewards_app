@@ -1,0 +1,176 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ========================================
+    // ヘルパー関数
+    // ========================================
+
+    // ユーザーが認証済みか
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // 自分のデータか
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 管理者権限チェック（カスタムクレーム使用）
+    function isAdmin() {
+      return isAuthenticated() &&
+             request.auth.token.get('admin', false) == true;
+    }
+
+    // データが存在するか
+    function existingData() {
+      return resource.data;
+    }
+
+    // 新規データ
+    function incomingData() {
+      return request.resource.data;
+    }
+
+    // ========================================
+    // ユーザープロファイル
+    // ========================================
+    match /users/{userId} {
+      // 読み取り: 本人のみ
+      allow read: if isOwner(userId);
+
+      // 作成: 本人のみ（初回登録時）
+      allow create: if isOwner(userId) &&
+                      incomingData().createdAt == request.time &&
+                      incomingData().keys().hasAll(['email', 'createdAt']);
+
+      // 更新: 本人のみ（特定フィールドのみ変更可能）
+      allow update: if isOwner(userId) &&
+                      !incomingData().diff(existingData()).affectedKeys()
+                        .hasAny(['uid', 'createdAt', 'points']);
+
+      // 削除: 本人または管理者
+      allow delete: if isOwner(userId) || isAdmin();
+
+
+      // ========================================
+      // ポイント履歴（サブコレクション）
+      // ========================================
+      match /points/{pointId} {
+        // 読み取り: 本人のみ
+        allow read: if isOwner(userId);
+
+        // 書き込み: 禁止（Cloud Functionsのみ）
+        allow write: if false;
+      }
+
+
+      // ========================================
+      // クーポン使用履歴（サブコレクション）
+      // ========================================
+      match /coupon_usage/{usageId} {
+        // 読み取り: 本人のみ
+        allow read: if isOwner(userId);
+
+        // 作成: Cloud Functionsのみ
+        allow create: if false;
+
+        // 更新・削除: 禁止
+        allow update, delete: if false;
+      }
+    }
+
+
+    // ========================================
+    // クーポン（全ユーザー共通）
+    // ========================================
+    match /coupons/{couponId} {
+      // 読み取り: 認証済みユーザー全員
+      allow read: if isAuthenticated();
+
+      // 書き込み: 管理者のみ
+      allow write: if isAdmin();
+    }
+
+
+    // ========================================
+    // ニュース・お知らせ
+    // ========================================
+    match /news/{newsId} {
+      // 読み取り: 全員（未認証でも可）
+      allow read: if true;
+
+      // 書き込み: 管理者のみ
+      allow write: if isAdmin();
+    }
+
+
+    // ========================================
+    // ポイント取引（QRスキャン記録）
+    // ========================================
+    match /point_transactions/{transactionId} {
+      // 読み取り: 本人のトランザクションのみ
+      allow read: if isAuthenticated() &&
+                    existingData().userId == request.auth.uid;
+
+      // 作成: Cloud Functionsのみ
+      allow create: if false;
+
+      // 更新・削除: 禁止
+      allow update, delete: if false;
+    }
+
+
+    // ========================================
+    // 店舗情報
+    // ========================================
+    match /stores/{storeId} {
+      // 読み取り: 全員
+      allow read: if true;
+
+      // 書き込み: 管理者のみ
+      allow write: if isAdmin();
+    }
+
+
+    // ========================================
+    // お問い合わせ
+    // ========================================
+    match /inquiries/{inquiryId} {
+      // 読み取り: 本人または管理者
+      allow read: if isAuthenticated() &&
+                    (existingData().userId == request.auth.uid || isAdmin());
+
+      // 作成: 認証済みユーザー
+      allow create: if isAuthenticated() &&
+                      incomingData().userId == request.auth.uid &&
+                      incomingData().createdAt == request.time;
+
+      // 更新: 管理者のみ（返信など）
+      allow update: if isAdmin();
+
+      // 削除: 禁止
+      allow delete: if false;
+    }
+
+
+    // ========================================
+    // アプリ設定（グローバル）
+    // ========================================
+    match /app_config/{configId} {
+      // 読み取り: 全員
+      allow read: if true;
+
+      // 書き込み: 管理者のみ
+      allow write: if isAdmin();
+    }
+
+
+    // ========================================
+    // デフォルト: すべて拒否
+    // ========================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

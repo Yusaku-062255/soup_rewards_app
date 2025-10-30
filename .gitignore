@@ -41,3 +41,59 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ========================================
+# 🔐 SECRETS & CREDENTIALS (重要)
+# ========================================
+
+# Firebase設定ファイル（APIキー含む）
+google-services.json
+GoogleService-Info.plist
+firebase_options.dart
+lib/firebase_options.dart
+ios/Runner/GoogleService-Info.plist
+ios/firebase_app_id_file.json
+android/app/google-services.json
+
+# 環境変数ファイル
+.env
+.env.*
+*.env
+.env.local
+.env.development
+.env.staging
+.env.production
+
+# Android署名ファイル
+key.properties
+android/key.properties
+*.keystore
+*.jks
+upload-keystore.jks
+
+# iOS署名・プロビジョニング
+ios/Runner/GoogleService-Info.plist
+*.mobileprovision
+*.p12
+*.cer
+*.certSigningRequest
+ios/Runner/Runner.entitlements.production
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+fastlane/.env
+fastlane/.env.*
+
+# OneSignal / PUSH通知
+onesignal_config.json
+
+# Sentry
+.sentryclirc
+
+# その他のシークレット
+secrets/
+*.secret
+*.private

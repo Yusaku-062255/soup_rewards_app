@@ -1,0 +1,30 @@
+# Android リリース署名設定
+# このファイルをコピーして android/key.properties を作成してください
+# ⚠️ key.properties は .gitignore に追加済みです（絶対にGitコミットしないこと）
+
+# Keystoreファイルのパス（絶対パスまたは相対パス）
+storeFile=/path/to/your/soup-rewards-upload.keystore
+
+# Keystoreパスワード
+storePassword=your_store_password_here
+
+# キーエイリアス
+keyAlias=upload
+
+# キーパスワード
+keyPassword=your_key_password_here
+
+# ========================================
+# Keystore 生成コマンド（初回のみ実行）
+# ========================================
+#
+# keytool -genkey -v -keystore ~/soup-rewards-upload.keystore \
+#   -alias upload \
+#   -keyalg RSA \
+#   -keysize 2048 \
+#   -validity 10000 \
+#   -storepass "YOUR_STORE_PASSWORD" \
+#   -keypass "YOUR_KEY_PASSWORD" \
+#   -dname "CN=SOUP Rewards, OU=Mobile, O=SOUP, L=Tokushima, ST=Tokushima, C=JP"
+#
+# 生成後、上記の storeFile にパスを設定してください
