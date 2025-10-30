@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../gacha/presentation/gacha_provider.dart';
+import '../../../gacha/presentation/pages/gacha_page.dart';
 
 /// ホームページ - SOUP Rewardsのメイン画面
 class HomePage extends ConsumerWidget {
@@ -34,8 +37,12 @@ class HomePage extends ConsumerWidget {
                 
                 // ポイントカード
                 _buildPointCard(context),
+                const SizedBox(height: 16),
+
+                // 今日のガチャCTA
+                _buildGachaCTA(context, ref),
                 const SizedBox(height: 24),
-                
+
                 // クイックアクション
                 _buildQuickActions(context),
                 const SizedBox(height: 24),
@@ -51,6 +58,98 @@ class HomePage extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildGachaCTA(BuildContext context, WidgetRef ref) {
+    final isClaimedAsync = ref.watch(isClaimedTodayProvider);
+
+    return isClaimedAsync.when(
+      data: (isClaimed) {
+        return GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const GachaPage()),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isClaimed
+                    ? [
+                        AppColors.grey400.withOpacity(0.5),
+                        AppColors.grey400.withOpacity(0.3),
+                      ]
+                    : [
+                        AppColors.secondary,
+                        AppColors.secondaryLight,
+                      ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                if (!isClaimed)
+                  BoxShadow(
+                    color: AppColors.secondary.withOpacity(0.3),
+                    offset: const Offset(0, 4),
+                    blurRadius: 16,
+                  ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: AppColors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    isClaimed ? Icons.check_circle : Icons.card_giftcard,
+                    color: AppColors.white,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isClaimed ? '本日のガチャ実行済み' : '今日のガチャ',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: AppColors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isClaimed
+                            ? '明日またチャレンジ！'
+                            : '最大500ポイントが当たる',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.white.withOpacity(0.9),
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: AppColors.white,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox(height: 100),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
