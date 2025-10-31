@@ -1,21 +1,15 @@
+import 'dart:developer' as dev;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'core/theme/app_theme.dart';
-import 'core/constants/app_constants.dart';
-import 'features/home/presentation/pages/main_page.dart';
+import 'firebase_options_loader.dart';
+import 'app.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Firebase初期化（本番環境では設定ファイルが必要）
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    // Firebase設定がない場合はスキップ（開発環境）
-    debugPrint('Firebase initialization skipped: $e');
-  }
-  
+  await _initFirebaseSafely();
+
   runApp(
     const ProviderScope(
       child: SoupRewardsApp(),
@@ -23,28 +17,25 @@ void main() async {
   );
 }
 
-class SoupRewardsApp extends StatelessWidget {
-  const SoupRewardsApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: AppConstants.appName,
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      home: const MainPage(),
-      builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(
-              MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.2),
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
+/// Firebase安全初期化
+///
+/// firebase_options_loader.dartがnullを返す場合（未設定時）でも
+/// アプリが起動できるようにtry-catchで保護します。
+Future<void> _initFirebaseSafely() async {
+  try {
+    if (firebaseOptions != null) {
+      await Firebase.initializeApp(options: firebaseOptions);
+      dev.log('Firebase initialized successfully', name: 'bootstrap');
+    } else {
+      dev.log('Firebase options not configured, skipping initialization', name: 'bootstrap');
+      if (kDebugMode) {
+        debugPrint('[INFO] Firebase未設定: firebase_options_loader.dartを更新してください');
+      }
+    }
+  } catch (e, st) {
+    dev.log('Firebase initialization failed', name: 'bootstrap', error: e, stackTrace: st);
+    if (kDebugMode) {
+      debugPrint('[WARN] Firebase init skipped: $e\n$st');
+    }
   }
 }

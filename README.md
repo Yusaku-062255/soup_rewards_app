@@ -11,16 +11,58 @@
 
 ---
 
+## 🚀 iOS実機で最短起動（5分）
+
+> このリポジトリには Firebase の秘密ファイルは含みません。各自で生成しローカルに配置してください。
+
+### 1. Firebase ConsoleでiOSアプリ追加
+- Bundle ID: `com.kanamurayusaku.soupRewards`
+- ダウンロードした **GoogleService-Info.plist** を `ios/Runner/` に配置
+
+### 2. FlutterFire CLIで `firebase_options.dart` を生成
+```bash
+dart pub global activate flutterfire_cli
+flutterfire configure \
+  --project <YOUR_PROJECT_ID> \
+  --ios-bundle-id com.kanamurayusaku.soupRewards
+```
+
+生成後、`lib/firebase_options_loader.dart` を次に置き換える：
+```dart
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+FirebaseOptions? get firebaseOptions => DefaultFirebaseOptions.currentPlatform;
+```
+
+### 3. 依存インストール
+```bash
+flutter pub get
+(cd ios && pod install --repo-update && cd ..)
+```
+
+### 4. Xcodeで Team/Bundle ID を設定し、実機を接続して `Run`
+
+### 5. Functions/ルールのデプロイ（必須）
+```bash
+cd functions && npm install && npm run deploy
+firebase deploy --only firestore:rules
+```
+
+> **重要**: Cloud Functions（claimDailyGacha/createBooking/redeemCoupon）はアプリ動作に必須です。
+
+---
 ## 📱 主要機能
 
-- ✅ **会員登録・認証** - Firebase Authentication（メール/匿名/Google）
-- ✅ **ポイントシステム** - QRスキャンでポイント獲得・履歴管理
-- ✅ **クーポン配布** - リアルタイムクーポン配信・使用管理
-- ✅ **ニュース配信** - 店舗情報・キャンペーン告知
-- ✅ **PUSH通知** - Firebase Cloud Messaging
-- ✅ **プロフィール管理** - 会員情報編集・ポイント確認
-- ✅ **エラー監視** - Sentry統合（本番環境）
-- ✅ **ダークモード対応** - Material Design 3準拠
+### 4タブ構成（ホーム／予約／ポイント／クーポン）
+
+- ✅ **ホーム画面** - 進行中クエスト、ポイント残高、今日の予約確認
+- ✅ **予約機能** - カレンダー選択、時間帯スロット予約（+50pt）、トランザクション対応
+- ✅ **ポイントシステム** - リアルタイム残高、当月獲得、履歴表示、デイリーガチャ（+10pt）
+- ✅ **クーポン管理** - 利用可能/使用済/期限切れフィルタ、即時使用機能
+- ✅ **ahamo級UI** - 大きめ角丸カード、波形グラデ、ミントアクセント
+- ✅ **Firebase安全起動** - 未設定でもクラッシュしない設計
+- ✅ **Cloud Functions** - JST対応ガチャ/予約/クーポン（asia-northeast1）
+- ✅ **Firestore Security** - 厳格なルール設定、所有者ベースアクセス制御
 
 ---
 

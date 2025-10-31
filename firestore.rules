@@ -2,175 +2,121 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ========================================
-    // ヘルパー関数
-    // ========================================
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn() && request.auth.token.admin == true; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
 
-    // ユーザーが認証済みか
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    // 自分のデータか
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    // 管理者権限チェック（カスタムクレーム使用）
-    function isAdmin() {
-      return isAuthenticated() &&
-             request.auth.token.get('admin', false) == true;
-    }
-
-    // データが存在するか
-    function existingData() {
-      return resource.data;
-    }
-
-    // 新規データ
-    function incomingData() {
-      return request.resource.data;
-    }
-
-    // ========================================
-    // ユーザープロファイル
-    // ========================================
+    // users
     match /users/{userId} {
-      // 読み取り: 本人のみ
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update, delete: if isOwner(userId) || isAdmin();
+    }
 
-      // 作成: 本人のみ（初回登録時）
-      allow create: if isOwner(userId) &&
-                      incomingData().createdAt == request.time &&
-                      incomingData().keys().hasAll(['email', 'createdAt']);
-
-      // 更新: 本人のみ（特定フィールドのみ変更可能）
-      allow update: if isOwner(userId) &&
-                      !incomingData().diff(existingData()).affectedKeys()
-                        .hasAny(['uid', 'createdAt', 'points']);
-
-      // 削除: 本人または管理者
+    // users/{userId}/vehicles/{vehicleId}
+    match /users/{userId}/vehicles/{vehicleId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(
+          ['make','model','year','vin','nickname','createdAt','updatedAt'])
+        && request.resource.data.make is string
+        && request.resource.data.model is string
+        && request.resource.data.year is number
+        && (!('vin' in request.resource.data) || request.resource.data.vin is string)
+        && (!('nickname' in request.resource.data) || request.resource.data.nickname is string)
+        && request.resource.data.createdAt is timestamp
+        && (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp);
+      allow update: if isOwner(userId) || isAdmin()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(
+          ['make','model','year','vin','nickname','updatedAt'])
+        && request.resource.data.updatedAt is timestamp;
       allow delete: if isOwner(userId) || isAdmin();
 
-
-      // ========================================
-      // ポイント履歴（サブコレクション）
-      // ========================================
-      match /points/{pointId} {
-        // 読み取り: 本人のみ
-        allow read: if isOwner(userId);
-
-        // 書き込み: 禁止（Cloud Functionsのみ）
-        allow write: if false;
+      // serviceHistory
+      match /serviceHistory/{historyId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId)
+          && request.resource.data.keys().hasOnly(
+            ['serviceAt','odometer','items','note','shop','createdAt','updatedAt'])
+          && request.resource.data.serviceAt is timestamp
+          && (!('odometer' in request.resource.data) || request.resource.data.odometer is number)
+          && (!('items' in request.resource.data) || request.resource.data.items is list)
+          && (!('note' in request.resource.data) || request.resource.data.note is string)
+          && (!('shop' in request.resource.data) || request.resource.data.shop is string)
+          && request.resource.data.createdAt is timestamp
+          && (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp);
+        allow update: if isOwner(userId) || isAdmin()
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(
+            ['serviceAt','odometer','items','note','shop','updatedAt'])
+          && request.resource.data.updatedAt is timestamp;
+        allow delete: if isOwner(userId) || isAdmin();
       }
 
-
-      // ========================================
-      // クーポン使用履歴（サブコレクション）
-      // ========================================
-      match /coupon_usage/{usageId} {
-        // 読み取り: 本人のみ
-        allow read: if isOwner(userId);
-
-        // 作成: Cloud Functionsのみ
-        allow create: if false;
-
-        // 更新・削除: 禁止
-        allow update, delete: if false;
+      // warranties
+      match /warranties/{warrantyId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId)
+          && request.resource.data.keys().hasOnly(
+            ['provider','policyNumber','startAt','endAt','coverage','createdAt','updatedAt'])
+          && request.resource.data.provider is string
+          && (!('policyNumber' in request.resource.data) || request.resource.data.policyNumber is string)
+          && request.resource.data.startAt is timestamp
+          && request.resource.data.endAt is timestamp
+          && request.resource.data.endAt > request.resource.data.startAt
+          && (!('coverage' in request.resource.data) || request.resource.data.coverage is string)
+          && request.resource.data.createdAt is timestamp
+          && (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp);
+        allow update: if isOwner(userId) || isAdmin()
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(
+            ['provider','policyNumber','startAt','endAt','coverage','updatedAt'])
+          && request.resource.data.updatedAt is timestamp;
+        allow delete: if isOwner(userId) || isAdmin();
       }
     }
 
-
-    // ========================================
-    // クーポン（全ユーザー共通）
-    // ========================================
-    match /coupons/{couponId} {
-      // 読み取り: 認証済みユーザー全員
-      allow read: if isAuthenticated();
-
-      // 書き込み: 管理者のみ
-      allow write: if isAdmin();
+    // bookings（トップレベル）
+    match /bookings/{bookingId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if false; // Cloud Functionsのみ（createBooking Callable）
+      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid)
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status','updatedAt'])
+        && request.resource.data.status in ['confirmed','cancelled']
+        && request.resource.data.updatedAt is timestamp;
+      allow delete: if isAdmin();
     }
 
-
-    // ========================================
-    // ニュース・お知らせ
-    // ========================================
-    match /news/{newsId} {
-      // 読み取り: 全員（未認証でも可）
-      allow read: if true;
-
-      // 書き込み: 管理者のみ
-      allow write: if isAdmin();
-    }
-
-
-    // ========================================
-    // ポイント取引（QRスキャン記録）
-    // ========================================
-    match /point_transactions/{transactionId} {
-      // 読み取り: 本人のトランザクションのみ
-      allow read: if isAuthenticated() &&
-                    existingData().userId == request.auth.uid;
-
-      // 作成: Cloud Functionsのみ
-      allow create: if false;
-
-      // 更新・削除: 禁止
+    // gachaClaims（1日1回/JST、createのみ可）
+    match /users/{userId}/gachaClaims/{yyyymmdd} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(['claimedAt','reward'])
+        && request.resource.data.claimedAt is timestamp
+        && (!('reward' in request.resource.data) || request.resource.data.reward is string);
       allow update, delete: if false;
     }
 
-
-    // ========================================
-    // 店舗情報
-    // ========================================
-    match /stores/{storeId} {
-      // 読み取り: 全員
-      allow read: if true;
-
-      // 書き込み: 管理者のみ
-      allow write: if isAdmin();
+    // points（Cloud Functionsのみが書込可能）
+    match /users/{userId}/points {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if false; // Cloud Functionsのみ
     }
 
-
-    // ========================================
-    // お問い合わせ
-    // ========================================
-    match /inquiries/{inquiryId} {
-      // 読み取り: 本人または管理者
-      allow read: if isAuthenticated() &&
-                    (existingData().userId == request.auth.uid || isAdmin());
-
-      // 作成: 認証済みユーザー
-      allow create: if isAuthenticated() &&
-                      incomingData().userId == request.auth.uid &&
-                      incomingData().createdAt == request.time;
-
-      // 更新: 管理者のみ（返信など）
-      allow update: if isAdmin();
-
-      // 削除: 禁止
-      allow delete: if false;
+    // pointLedger（Cloud Functionsのみが書込可能）
+    match /users/{userId}/pointLedger/{entryId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if false; // Cloud Functionsのみ
     }
 
-
-    // ========================================
-    // アプリ設定（グローバル）
-    // ========================================
-    match /app_config/{configId} {
-      // 読み取り: 全員
-      allow read: if true;
-
-      // 書き込み: 管理者のみ
-      allow write: if isAdmin();
+    // coupons（Cloud Functionsのみが書込可能）
+    match /users/{userId}/coupons/{couponId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if false; // redeemはCallableで処理
     }
 
-
-    // ========================================
-    // デフォルト: すべて拒否
-    // ========================================
-    match /{document=**} {
-      allow read, write: if false;
+    // serviceCenters（スロット管理、Cloud Functionsのみ書込）
+    match /serviceCenters/{centerId}/days/{yyyymmdd}/slots/{slotId} {
+      allow read: if isSignedIn(); // 全ログインユーザーが読取可能
+      allow write: if false; // Cloud Functionsのみ
     }
   }
 }
