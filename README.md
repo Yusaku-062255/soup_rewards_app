@@ -584,10 +584,71 @@ flutter run -d <device-id>
 #    - ポイント履歴で delta と balance が整合していることを確認
 ```
 
+### スクリーンショット撮影手順
+
+PR作成時には以下の4枚のスクリーンショットを添付してください：
+
+#### 1. ガチャ成功画面
+```
+手順:
+1. ポイントタブへ移動
+2. 「デイリーガチャを回す」ボタンをタップ
+3. 成功メッセージが表示されたらスクリーンショット撮影
+
+確認項目:
+- ✅ スナックバーに「ガチャ成功！ +10ポイント獲得」と表示
+- ✅ 画面上部の合計ポイントが更新されている
+- ✅ ポイント履歴に新しいエントリーが追加されている
+```
+
+#### 2. 受取済み画面
+```
+手順:
+1. ガチャ成功後、再度「デイリーガチャを回す」ボタンをタップ
+2. 受取済みメッセージが表示されたらスクリーンショット撮影
+
+確認項目:
+- ✅ スナックバーに「本日分は既に受取済みです」と表示
+- ✅ リセットまでの時間が表示されている（例: リセットまで約15時間）
+- ✅ 合計ポイントは変わらない
+```
+
+#### 3. ポイント履歴画面
+```
+手順:
+1. ポイント画面を下にスクロール
+2. 「ポイント履歴」セクションが見える状態でスクリーンショット撮影
+
+確認項目:
+- ✅ 最新10件の履歴が表示されている
+- ✅ 各エントリーに delta（+10など）と balance（残高: XXX pt）が表示
+- ✅ 日時が表示されている（YYYY/MM/DD HH:MM形式）
+- ✅ アイコンが type に応じて表示されている（ガチャは🎁アイコン）
+```
+
+#### 4. Firestore Console確認画面
+```
+手順:
+1. Firebase Console → Firestore Database を開く
+2. users/{uid}/pointLedger を展開
+3. 最新のガチャエントリーを表示した状態でスクリーンショット撮影
+
+確認項目:
+- ✅ type: "gacha"
+- ✅ delta: 10
+- ✅ balance: (正しい残高)
+- ✅ note: "デイリーガチャ"
+- ✅ createdAt: Timestamp
+- ✅ users/{uid}/gachaClaims/{dayId} が作成されている
+```
+
 ### クライアント直書き禁止の確認
 
+以下のコードはすべて権限エラーになります（想定通りの動作）：
+
+#### テスト1: pointLedgerへの直接書込み
 ```dart
-// このコードは権限エラーになる（想定通り）
+// ❌ このコードは権限エラーになる
 await FirebaseFirestore.instance
   .collection('users')
   .doc(userId)
@@ -599,7 +660,106 @@ await FirebaseFirestore.instance
     'note': 'テスト',
     'createdAt': FieldValue.serverTimestamp(),
   });
-// Error: Missing or insufficient permissions
+// Expected Error: Missing or insufficient permissions
+```
+
+#### テスト2: gachaClaimsへの直接書込み
+```dart
+// ❌ このコードは権限エラーになる
+await FirebaseFirestore.instance
+  .collection('users')
+  .doc(userId)
+  .collection('gachaClaims')
+  .doc('20250105')
+  .set({
+    'claimedAt': FieldValue.serverTimestamp(),
+    'reward': 'points',
+  });
+// Expected Error: Missing or insufficient permissions
+```
+
+#### テスト3: users.totalPointsの直接更新
+```dart
+// ❌ このコードは権限エラーになる
+await FirebaseFirestore.instance
+  .collection('users')
+  .doc(userId)
+  .update({
+    'totalPoints': 9999,  // 保護フィールド
+  });
+// Expected Error: Missing or insufficient permissions
+```
+
+#### テスト4: users.totalGachaPlaysの直接更新
+```dart
+// ❌ このコードは権限エラーになる
+await FirebaseFirestore.instance
+  .collection('users')
+  .doc(userId)
+  .update({
+    'totalGachaPlays': 100,  // 保護フィールド
+  });
+// Expected Error: Missing or insufficient permissions
+```
+
+#### テスト5: users.totalBookingsの直接更新
+```dart
+// ❌ このコードは権限エラーになる
+await FirebaseFirestore.instance
+  .collection('users')
+  .doc(userId)
+  .update({
+    'totalBookings': 50,  // 保護フィールド
+  });
+// Expected Error: Missing or insufficient permissions
+```
+
+#### ✅ 許可される更新例
+```dart
+// ✅ このコードは成功する（保護フィールド以外の更新）
+await FirebaseFirestore.instance
+  .collection('users')
+  .doc(userId)
+  .update({
+    'displayName': '新しい名前',
+    'notificationEnabled': false,
+  });
+// Success: 保護されていないフィールドの更新は許可される
+```
+
+#### Firestore Rules Playground での検証
+
+Firebase Console → Firestore → Rules → Rules Playground で以下をテスト:
+
+**シミュレーション1: totalPoints 更新試行**
+```
+Location: /users/{userId}
+Type: update
+Auth: Authenticated (Custom UID: test-user-123)
+
+Data:
+{
+  "totalPoints": 9999,
+  "displayName": "Test User"
+}
+
+Expected Result: ❌ Permission denied
+Reason: totalPoints は保護フィールドのため更新不可
+```
+
+**シミュレーション2: displayName のみ更新**
+```
+Location: /users/{userId}
+Type: update
+Auth: Authenticated (Custom UID: test-user-123)
+
+Data:
+{
+  "displayName": "New Name"
+}
+
+Expected Result: ✅ Allowed
+Reason: 保護フィールド以外の更新は許可
 ```
 
 ---
