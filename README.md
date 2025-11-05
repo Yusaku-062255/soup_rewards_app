@@ -53,15 +53,17 @@ firebase deploy --only firestore:rules
 ---
 ## 📱 主要機能
 
-### 4タブ構成（ホーム／予約／ポイント／クーポン）
+### 5タブ構成（ホーム／予約／ポイント／クーポン／プロフィール）
 
+- ✅ **認証機能** - 匿名ログイン、Apple Sign-In、アカウントリンク、プロフィール編集
 - ✅ **ホーム画面** - 進行中クエスト、ポイント残高、今日の予約確認
 - ✅ **予約機能** - カレンダー選択、時間帯スロット予約（+50pt）、トランザクション対応
 - ✅ **ポイントシステム** - リアルタイム残高、当月獲得、履歴表示、デイリーガチャ（+10pt）
 - ✅ **クーポン管理** - 利用可能/使用済/期限切れフィルタ、即時使用機能
+- ✅ **プロフィール** - 表示名編集、通知設定、ログアウト、アカウント削除（論理削除）
 - ✅ **ahamo級UI** - 大きめ角丸カード、波形グラデ、ミントアクセント
 - ✅ **Firebase安全起動** - 未設定でもクラッシュしない設計
-- ✅ **Cloud Functions** - JST対応ガチャ/予約/クーポン（asia-northeast1）
+- ✅ **Cloud Functions** - JST対応ガチャ/予約/クーポン/認証（asia-northeast1）
 - ✅ **Firestore Security** - 厳格なルール設定、所有者ベースアクセス制御
 
 ---
@@ -106,9 +108,11 @@ lib/
 │       ├── performance_utils.dart     # パフォーマンス最適化
 │       └── security_utils.dart        # セキュリティユーティリティ
 ├── features/
+│   ├── auth/                          # 認証機能（匿名/Apple Sign-In）
 │   ├── home/                          # ホーム機能
+│   ├── booking/                       # 予約機能
 │   ├── points/                        # ポイント機能
-│   ├── coupon/                        # クーポン機能
+│   ├── coupons/                       # クーポン機能
 │   ├── qr_scan/                       # QRスキャン機能
 │   └── profile/                       # プロフィール機能
 └── firebase_options.dart              # Firebase設定（自動生成）
@@ -155,6 +159,25 @@ dart pub global activate flutterfire_cli
 # Firebase設定ファイル生成
 flutterfire configure --project=soup-rewards-app
 ```
+
+#### Apple Sign-In設定（iOS）
+
+1. **Apple Developer Centerで設定**
+   - App IDsで「Sign In with Apple」を有効化
+   - Bundle ID: `com.kanamurayusaku.soupRewards`
+
+2. **Xcodeで設定**
+   ```bash
+   open ios/Runner.xcworkspace
+   ```
+   - Signing & Capabilities → 「+ Capability」
+   - 「Sign in with Apple」を追加
+
+3. **Firebase Consoleで設定**
+   - Authentication → Sign-in method → Apple
+   - 有効化し、Service IDを設定
+
+詳細は [.github/EPIC_1_AUTH.md](.github/EPIC_1_AUTH.md) を参照。
 
 ### 5️⃣ 環境変数設定（オプション）
 
