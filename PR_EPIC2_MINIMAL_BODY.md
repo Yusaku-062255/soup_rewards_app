@@ -146,29 +146,40 @@ testWidgets('PointsScreen shows login prompt when not authenticated', (tester) a
 - 実機テスト手順
 - クライアント直書き禁止の確認方法
 
-## 📸 スクリーンショット
+## 📸 スクリーンショット（必須）
 
-<!-- TODO: 実機で以下のスクショを撮影して追加 -->
+**レビュアーへ**: 以下の4枚のスクリーンショットを実機で撮影してPRコメントに追加してください。
 
 ### 1. ポイント画面（ガチャ実行前）
-![Points Screen Before](path/to/screenshot1.png)
-- 残高表示
-- デイリーガチャボタン
-- ポイント履歴（最新10件）
+**撮影タイミング**: ポイントタブを開いた直後
+**確認項目**:
+- [ ] 残高表示（合計ポイント）
+- [ ] 「デイリーガチャを回す」ボタンが表示されている
+- [ ] ポイント履歴が最新10件表示されている（履歴がある場合）
+- [ ] 各履歴エントリに「残高: XXX pt」が表示されている
 
 ### 2. ガチャ実行成功
-![Gacha Success](path/to/screenshot2.png)
-- スナックバー: 「ガチャ成功！ +10ポイント獲得」
-- 残高が更新される
+**撮影タイミング**: 「デイリーガチャを回す」ボタンをタップ後、成功スナックバーが表示されている状態
+**確認項目**:
+- [ ] スナックバー: 「ガチャ成功！ +10ポイント獲得」が表示
+- [ ] 残高が更新される（例: 0 → 10）
+- [ ] ポイント履歴の一番上に新しいエントリが追加される
+- [ ] 新しいエントリの delta: +10, balance: 更新後の残高
 
 ### 3. 2回目実行（受取済み）
-![Already Claimed](path/to/screenshot3.png)
-- スナックバー: 「本日分は既に受取済みです。リセットまで約X時間」
+**撮影タイミング**: 同じ日に再度「デイリーガチャを回す」ボタンをタップ後
+**確認項目**:
+- [ ] スナックバー: 「本日分は既に受取済みです。リセットまで約X時間」が表示
+- [ ] 残高は変わらない
+- [ ] ポイント履歴に新しいエントリは追加されない
 
 ### 4. 台帳の整合性確認
-![Ledger Integrity](path/to/screenshot4.png)
-- 各エントリに delta と balance が表示
-- balance = 前のbalance + delta の整合性を確認
+**撮影タイミング**: ポイント履歴画面（複数のエントリがある状態）
+**確認項目**:
+- [ ] 各エントリに delta（増減）と balance（残高）が表示
+- [ ] balance = 前のbalance + delta の整合性が確認できる
+- [ ] 最新エントリが上に表示されている（降順）
+- [ ] 最大10件まで表示されている
 
 ## 🧪 テスト方法
 
@@ -317,6 +328,246 @@ export const claimDailyGacha = functions
 **Epic**: Epic 2 (Points & Daily Gacha)
 **Type**: Feature Implementation (Minimal Slice)
 **Priority**: High
+
+## 🔍 iOS実機テスト詳細手順
+
+### テスト環境構築
+
+```bash
+# 1. Cloud Functions デプロイ（asia-northeast1）
+cd functions
+npm install
+npm run deploy
+
+# 2. Firestore ルール デプロイ
+cd ..
+firebase deploy --only firestore:rules
+
+# 3. iOS実機ビルド
+flutter run -d <device-id>
+```
+
+### 正常系テスト
+
+#### シナリオ1: 初回ガチャ実行（成功）
+1. **ログイン**
+   - [ ] 匿名ログインまたはApple Sign-Inでログイン成功
+   - [ ] プロフィールタブで認証状態を確認
+
+2. **ポイントタブへ移動**
+   - [ ] 下部ナビゲーションから「ポイント」タブをタップ
+   - [ ] 残高が表示される（初回: 0pt）
+   - [ ] 「デイリーガチャを回す」ボタンが有効
+
+3. **ガチャ実行**
+   - [ ] 「デイリーガチャを回す」ボタンをタップ
+   - [ ] **期待結果**:
+     - スナックバー「ガチャ成功！ +10ポイント獲得」が表示
+     - 残高が10ptに更新される
+     - ボタンが一時的に無効化される（ローディング中）
+     - ボタンが再び有効になる
+
+4. **台帳確認**
+   - [ ] ポイント履歴の一番上に新しいエントリが表示
+   - [ ] **期待結果**:
+     - note: 「デイリーガチャ」
+     - delta: +10
+     - balance: 10
+     - type: gacha（ギフトアイコン）
+     - 日時が正しい
+
+#### シナリオ2: 同日2回目実行（受取済み）
+1. **再度ガチャボタンをタップ**
+   - [ ] 同じ画面で「デイリーガチャを回す」ボタンをタップ
+   - [ ] **期待結果**:
+     - スナックバー「本日分は既に受取済みです。リセットまで約X時間」が表示
+     - 残高は変わらない（10pt）
+     - ポイント履歴に新しいエントリは追加されない
+
+2. **アプリ再起動後も同じ挙動**
+   - [ ] アプリを完全終了
+   - [ ] 再起動してポイントタブへ移動
+   - [ ] ガチャボタンをタップ
+   - [ ] **期待結果**: 同じく「受取済み」メッセージ
+
+#### シナリオ3: 台帳の整合性確認
+1. **複数のエントリがある状態を作成**
+   - [ ] Cloud Functionsで手動でポイント追加（テスト用）
+   - [ ] または翌日まで待ってもう一度ガチャ実行
+
+2. **台帳の確認**
+   - [ ] **期待結果**:
+     - 最新10件まで表示される
+     - 各エントリに delta と balance が表示
+     - balance = 前のbalance + delta が成り立つ
+     - 最新エントリが上（降順）
+
+### 異常系テスト
+
+#### シナリオ4: クライアント直書き禁止の確認
+
+**方法1: Firebaseコンソールで確認**
+1. Firebase Console → Firestore Database を開く
+2. `users/{your-uid}/pointLedger` コレクションを選択
+3. 「ドキュメントを追加」をクリック
+4. 以下のフィールドを入力:
+   ```
+   type: "manual"
+   delta: 100
+   balance: 200
+   note: "テスト"
+   createdAt: (タイムスタンプ)
+   ```
+5. **期待結果**: 「Missing or insufficient permissions」エラーが表示される
+
+**方法2: Flutter DevToolsで確認**
+1. iOS実機でアプリ起動中にFlutter DevToolsを開く
+2. Consoleタブで以下のコードを実行:
+   ```dart
+   import 'package:cloud_firestore/cloud_firestore.dart';
+   import 'package:firebase_auth/firebase_auth.dart';
+
+   final userId = FirebaseAuth.instance.currentUser!.uid;
+   await FirebaseFirestore.instance
+     .collection('users')
+     .doc(userId)
+     .collection('pointLedger')
+     .add({
+       'type': 'manual',
+       'delta': 100,
+       'balance': 200,
+       'note': 'テスト',
+       'createdAt': FieldValue.serverTimestamp(),
+     });
+   ```
+3. **期待結果**:
+   - Error: `[cloud_firestore/permission-denied]`
+   - コンソールに「Missing or insufficient permissions」
+
+**方法3: gachaClaims の直書き確認**
+1. Firebaseコンソールで `users/{your-uid}/gachaClaims/20250105` に書き込もうとする
+2. **期待結果**: 同じく権限エラー
+
+**方法4: users.totalPoints の直書き確認**
+1. Firebaseコンソールで `users/{your-uid}` ドキュメントを編集
+2. `totalPoints` フィールドを1000に変更しようとする
+3. **期待結果**:
+   - 更新が拒否される（diff checkにより）
+   - または、displayName等の他のフィールドは更新できるが、totalPointsは更新できない
+
+#### シナリオ5: Cloud Functions が未デプロイの場合
+1. Functionsをデプロイせずにガチャボタンをタップ
+2. **期待結果**:
+   - エラースナックバー「ガチャに失敗しました: ...」
+   - Error: `[functions/not-found]` または類似のエラー
+
+#### シナリオ6: 認証なしでアクセス
+1. ログアウト状態でポイントタブへ移動
+2. **期待結果**:
+   - 「Please log in to view your points.」が表示される
+   - ガチャボタンは表示されない
+
+### Firestore Console 確認手順
+
+#### 正しいデータ構造の確認
+
+1. **users/{uid} ドキュメント**
+   ```
+   Firebase Console → Firestore Database → users → {your-uid}
+
+   確認項目:
+   - [x] totalPoints: 10 (ガチャ1回実行後)
+   - [x] totalGachaPlays: 1
+   - [x] updatedAt: (最新のタイムスタンプ)
+   ```
+
+2. **gachaClaims/{dayId} ドキュメント**
+   ```
+   Firebase Console → users/{your-uid}/gachaClaims → {YYYYMMDD}
+
+   確認項目:
+   - [x] ドキュメントIDが今日の日付（YYYYMMDD形式）
+   - [x] claimedAt: (タイムスタンプ)
+   - [x] reward: "points"
+   ```
+
+3. **pointLedger/{entryId} ドキュメント**
+   ```
+   Firebase Console → users/{your-uid}/pointLedger → (auto-generated-id)
+
+   確認項目:
+   - [x] type: "gacha"
+   - [x] delta: 10
+   - [x] balance: 10 (初回の場合)
+   - [x] note: "デイリーガチャ"
+   - [x] createdAt: (タイムスタンプ)
+   ```
+
+#### セキュリティルールの動作確認
+
+1. **Rules Playground を使用**
+   ```
+   Firebase Console → Firestore Database → ルール → Playground
+
+   テスト1: pointLedger 読み取り（許可）
+   - 場所: /users/{your-uid}/pointLedger/{doc-id}
+   - 操作: get
+   - 認証: {your-uid}
+   - 期待結果: ✅ Allowed
+
+   テスト2: pointLedger 書き込み（拒否）
+   - 場所: /users/{your-uid}/pointLedger/{doc-id}
+   - 操作: create
+   - 認証: {your-uid}
+   - 期待結果: ❌ Denied
+
+   テスト3: gachaClaims 書き込み（拒否）
+   - 場所: /users/{your-uid}/gachaClaims/20250105
+   - 操作: create
+   - 認証: {your-uid}
+   - 期待結果: ❌ Denied
+
+   テスト4: users.totalPoints 更新（拒否）
+   - 場所: /users/{your-uid}
+   - 操作: update
+   - データ: {"totalPoints": 1000}
+   - 認証: {your-uid}
+   - 期待結果: ❌ Denied
+   ```
+
+## ✅ 最終チェックリスト
+
+### デプロイ前
+- [ ] Cloud Functions がデプロイされている（asia-northeast1）
+- [ ] Firestore ルールがデプロイされている
+- [ ] iOS実機にアプリがインストールされている
+- [ ] Firebase プロジェクトが正しく設定されている
+
+### 正常系
+- [ ] シナリオ1: 初回ガチャ実行が成功する
+- [ ] シナリオ2: 同日2回目が「受取済み」になる
+- [ ] シナリオ3: 台帳の整合性が確認できる
+
+### 異常系
+- [ ] シナリオ4: クライアント直書きが拒否される（pointLedger）
+- [ ] シナリオ4: クライアント直書きが拒否される（gachaClaims）
+- [ ] シナリオ4: users.totalPoints の直接更新が拒否される
+- [ ] シナリオ5: Functions未デプロイ時にエラーが表示される
+- [ ] シナリオ6: 未ログイン時に適切なメッセージが表示される
+
+### Firestore Console
+- [ ] users/{uid} に正しいデータが保存されている
+- [ ] gachaClaims/{dayId} に正しいデータが保存されている
+- [ ] pointLedger/{entryId} に正しいデータが保存されている
+- [ ] Rules Playground で全てのテストが期待通りに動作する
+
+### スクリーンショット
+- [ ] スクショ1: ポイント画面（ガチャ実行前）
+- [ ] スクショ2: ガチャ実行成功
+- [ ] スクショ3: 2回目実行（受取済み）
+- [ ] スクショ4: 台帳の整合性確認
+
+---
 
 ## 📝 PR作成コマンド
 

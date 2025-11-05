@@ -6,6 +6,7 @@ on:
       - main
       - develop
       - 'claude/**'
+      - 'feature/**'
   pull_request:
     branches:
       - main
