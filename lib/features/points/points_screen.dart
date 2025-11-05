@@ -31,7 +31,7 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
 
     final pointsRepo = ref.watch(pointsRepositoryProvider);
     final totalPointsStream = pointsRepo.totalPoints(user.uid);
-    final ledgerStream = pointsRepo.ledgerPaged(user.uid, limit: 50);
+    final ledgerStream = pointsRepo.ledgerPaged(user.uid, limit: 10);
 
     return Scaffold(
       backgroundColor: DesignTokens.surface,
@@ -229,6 +229,15 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                     style: const TextStyle(
                       fontSize: DesignTokens.fontSizeSmall,
                       color: DesignTokens.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '残高: ${entry.balance} pt',
+                    style: const TextStyle(
+                      fontSize: DesignTokens.fontSizeSmall,
+                      color: DesignTokens.textSecondary,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],

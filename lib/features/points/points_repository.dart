@@ -14,6 +14,7 @@ class PointEntry {
   final String id;
   final String type;
   final int delta;
+  final int balance;
   final String note;
   final DateTime createdAt;
 
@@ -21,6 +22,7 @@ class PointEntry {
     required this.id,
     required this.type,
     required this.delta,
+    required this.balance,
     required this.note,
     required this.createdAt,
   });
@@ -30,6 +32,7 @@ class PointEntry {
       id: id,
       type: data['type'] as String,
       delta: data['delta'] as int,
+      balance: data['balance'] as int? ?? 0,
       note: data['note'] as String,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
@@ -72,22 +75,20 @@ class PointsRepository {
     required this.functions,
   });
 
-  /// Get total points stream
+  /// Get total points stream from users document
   Stream<int> totalPoints(String userId) {
     return firestore
         .collection('users')
         .doc(userId)
-        .collection('points')
-        .doc('total')
         .snapshots()
         .map((snapshot) {
       if (!snapshot.exists) return 0;
-      return snapshot.data()?['total'] as int? ?? 0;
+      return snapshot.data()?['totalPoints'] as int? ?? 0;
     });
   }
 
-  /// Get point ledger stream with pagination
-  Stream<List<PointEntry>> ledgerPaged(String userId, {int limit = 20}) {
+  /// Get point ledger stream with pagination (default: 10 entries)
+  Stream<List<PointEntry>> ledgerPaged(String userId, {int limit = 10}) {
     return firestore
         .collection('users')
         .doc(userId)

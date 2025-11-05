@@ -8,9 +8,24 @@ service cloud.firestore {
 
     // users
     match /users/{userId} {
+      // 読み取り: 本人のみ
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId);
-      allow update, delete: if isOwner(userId) || isAdmin();
+
+      // 作成: 本人のみ（初回登録時）
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.keys().hasAll(['uid', 'createdAt', 'isAnonymous', 'authProviders'])
+        && request.resource.data.isAnonymous is bool
+        && request.resource.data.authProviders is list;
+
+      // 更新: 本人のみ（特定フィールドのみ変更可能）
+      // totalPoints, totalBookings, totalGachaPlaysはCloud Functionsのみが変更可能
+      allow update: if isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['uid', 'createdAt', 'totalPoints', 'totalBookings', 'totalGachaPlays']);
+
+      // 削除: 禁止（論理削除のみ）
+      allow delete: if false;
     }
 
     // users/{userId}/vehicles/{vehicleId}
@@ -85,14 +100,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // gachaClaims（1日1回/JST、createのみ可）
+    // gachaClaims（Cloud Functionsのみが書込可能）
     match /users/{userId}/gachaClaims/{yyyymmdd} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId)
-        && request.resource.data.keys().hasOnly(['claimedAt','reward'])
-        && request.resource.data.claimedAt is timestamp
-        && (!('reward' in request.resource.data) || request.resource.data.reward is string);
-      allow update, delete: if false;
+      allow write: if false; // Cloud Functionsのみ
     }
 
     // points（Cloud Functionsのみが書込可能）

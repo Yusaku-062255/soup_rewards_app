@@ -429,6 +429,181 @@ Copyright © 2024 SOUP Inc. All rights reserved.
 
 ---
 
+## 🎁 ポイント/ガチャの利用方法
+
+### デイリーガチャの実行
+
+1. **ログイン**: 匿名ログインまたはApple Sign-Inでログイン
+2. **ポイントタブへ移動**: 下部ナビゲーションから「ポイント」タブをタップ
+3. **ガチャボタンをタップ**: 「デイリーガチャを回す」ボタンをタップ
+4. **結果確認**:
+   - 成功: スナックバーで獲得ポイント数が表示される（+10pt など）
+   - 既に受取済み: 「本日分は既に受取済みです」とリセット時間が表示される
+
+### ポイント残高と台帳の確認
+
+- **残高表示**: ポイント画面上部に合計ポイントが大きく表示
+- **当月獲得**: 今月獲得したポイント合計を表示
+- **ポイント履歴**: 最新10件の取引履歴を表示
+  - 各履歴には **delta**（増減）と **balance**（その時点の残高）が表示される
+  - 台帳の整合性を確認可能
+
+### Cloud Functions実装要件
+
+デイリーガチャを動作させるには、以下のCloud Functionが必要です：
+
+```typescript
+// functions/src/index.ts
+export const claimDailyGacha = functions
+  .region('asia-northeast1')
+  .https.onCall(async (data, context) => {
+    const uid = context.auth?.uid;
+    if (!uid) throw new functions.https.HttpsError('unauthenticated', 'Login required.');
+
+    // JST基準でdayIdを生成
+    const dayId = getCurrentDayIdJST();
+
+    // Idempotency: 既に受け取っているかチェック
+    const gachaClaimRef = admin.firestore()
+      .collection('users').doc(uid)
+      .collection('gachaClaims').doc(dayId);
+
+    const gachaSnap = await gachaClaimRef.get();
+    if (gachaSnap.exists) {
+      return {
+        ok: false,
+        reason: 'already_claimed',
+        resetInSeconds: getSecondsUntilNextDayJST(),
+        dayId
+      };
+    }
+
+    // Transaction: ガチャ実行 + ポイント付与
+    await admin.firestore().runTransaction(async (tx) => {
+      const userRef = admin.firestore().collection('users').doc(uid);
+      const userSnap = await tx.get(userRef);
+      const currentPoints = userSnap.data()?.totalPoints || 0;
+      const amount = 10; // 固定10ポイント（Epic 2最小実装）
+
+      // ポイント加算
+      tx.update(userRef, {
+        totalPoints: currentPoints + amount,
+        totalGachaPlays: admin.firestore.FieldValue.increment(1),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // 台帳記録
+      const ledgerRef = userRef.collection('pointLedger').doc();
+      tx.set(ledgerRef, {
+        type: 'gacha',
+        delta: amount,
+        balance: currentPoints + amount,
+        note: 'デイリーガチャ',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // ガチャ受取記録
+      tx.set(gachaClaimRef, {
+        claimedAt: admin.firestore.FieldValue.serverTimestamp(),
+        reward: 'points',
+      });
+    });
+
+    return {
+      ok: true,
+      reward: { type: 'points', amount: 10 },
+      resetInSeconds: getSecondsUntilNextDayJST(),
+      dayId
+    };
+  });
+
+function getCurrentDayIdJST(): string {
+  const now = new Date();
+  const jstOffset = 9 * 60; // JST = UTC+9
+  const jstDate = new Date(now.getTime() + jstOffset * 60 * 1000);
+  return jstDate.toISOString().slice(0, 10).replace(/-/g, '');
+}
+
+function getSecondsUntilNextDayJST(): number {
+  const now = new Date();
+  const jstOffset = 9 * 60;
+  const jstDate = new Date(now.getTime() + jstOffset * 60 * 1000);
+  const tomorrow = new Date(jstDate);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  tomorrow.setUTCHours(0, 0, 0, 0);
+  return Math.floor((tomorrow.getTime() - jstDate.getTime()) / 1000);
+}
+```
+
+### Firestoreセキュリティルール
+
+```javascript
+// firestore.rules
+
+// pointLedger: Cloud Functionsのみ書込可能
+match /users/{userId}/pointLedger/{entryId} {
+  allow read: if isOwner(userId) || isAdmin();
+  allow write: if false; // Cloud Functionsのみ
+}
+
+// gachaClaims: Cloud Functionsのみ書込可能
+match /users/{userId}/gachaClaims/{yyyymmdd} {
+  allow read: if isOwner(userId) || isAdmin();
+  allow write: if false; // Cloud Functionsのみ
+}
+
+// users: totalPoints等の統計フィールドはCloud Functionsのみ更新可
+match /users/{userId} {
+  allow read: if isOwner(userId) || isAdmin();
+  allow update: if isOwner(userId)
+    && !request.resource.data.diff(resource.data).affectedKeys()
+      .hasAny(['uid', 'createdAt', 'totalPoints', 'totalBookings', 'totalGachaPlays']);
+}
+```
+
+### 実機テスト手順
+
+```bash
+# 1. Cloud Functionsデプロイ
+cd functions
+npm install
+npm run deploy
+
+# 2. Firestoreルールデプロイ
+firebase deploy --only firestore:rules
+
+# 3. iOS実機ビルド
+flutter run -d <device-id>
+
+# 4. テストフロー
+#    - 匿名ログイン or Appleログイン
+#    - ポイントタブへ移動
+#    - デイリーガチャボタンをタップ
+#    - 成功メッセージとポイント残高更新を確認
+#    - もう一度タップ → 「受取済み」メッセージを確認
+#    - ポイント履歴で delta と balance が整合していることを確認
+```
+
+### クライアント直書き禁止の確認
+
+```dart
+// このコードは権限エラーになる（想定通り）
+await FirebaseFirestore.instance
+  .collection('users')
+  .doc(userId)
+  .collection('pointLedger')
+  .add({
+    'type': 'manual',
+    'delta': 100,
+    'balance': 200,
+    'note': 'テスト',
+    'createdAt': FieldValue.serverTimestamp(),
+  });
+// Error: Missing or insufficient permissions
+```
+
+---
+
 ## 📞 サポート
 
 ### 開発者向け
