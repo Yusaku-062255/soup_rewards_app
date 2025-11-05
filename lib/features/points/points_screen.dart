@@ -288,24 +288,36 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
             SnackBar(
               content: Text('ガチャ成功！ +${amount}ポイント獲得'),
               backgroundColor: DesignTokens.success,
+              duration: const Duration(seconds: 3),
             ),
           );
         } else {
-          final hoursLeft = (result.resetInSeconds / 3600).ceil();
+          final reason = result.reason ?? 'unknown';
+          String message;
+          if (reason == 'already_claimed') {
+            final hoursLeft = (result.resetInSeconds / 3600).ceil();
+            message = '本日分は既に受取済みです。リセットまで約${hoursLeft}時間';
+          } else {
+            message = 'ガチャを引けませんでした（理由: $reason）';
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('本日分は既に受取済みです。リセットまで約${hoursLeft}時間'),
+              content: Text(message),
               backgroundColor: DesignTokens.warning,
+              duration: const Duration(seconds: 4),
             ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = _getErrorMessage(e);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('ガチャに失敗しました: $e'),
+            content: Text(errorMessage),
             backgroundColor: DesignTokens.error,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -314,5 +326,30 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
         setState(() => _isClaimingGacha = false);
       }
     }
+  }
+
+  String _getErrorMessage(Object error) {
+    final errorString = error.toString();
+
+    // Firebase Functions エラー
+    if (errorString.contains('functions/not-found')) {
+      return 'ガチャ機能が利用できません。しばらくしてからお試しください。';
+    } else if (errorString.contains('functions/unauthenticated')) {
+      return 'ログインが必要です。再度ログインしてください。';
+    } else if (errorString.contains('functions/permission-denied')) {
+      return '権限がありません。アカウント設定を確認してください。';
+    } else if (errorString.contains('functions/unavailable')) {
+      return 'サーバーに接続できません。ネットワーク接続を確認してください。';
+    } else if (errorString.contains('functions/deadline-exceeded')) {
+      return '処理がタイムアウトしました。もう一度お試しください。';
+    }
+
+    // ネットワークエラー
+    if (errorString.contains('SocketException') || errorString.contains('NetworkError')) {
+      return 'ネットワーク接続を確認してください。';
+    }
+
+    // その他のエラー
+    return 'ガチャに失敗しました。もう一度お試しください。';
   }
 }
