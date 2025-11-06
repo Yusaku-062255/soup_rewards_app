@@ -764,6 +764,192 @@ Reason: 保護フィールド以外の更新は許可
 
 ---
 
+## ⏰ ポイント失効 & 月次集計（Cloud Scheduler）
+
+### 概要
+
+M7 実装により、以下の自動処理が追加されました：
+
+1. **ポイント失効処理**: 付与から1年経過したポイントを自動失効（毎日 JST 03:00）
+2. **月次統計計算**: 前月のポイント付与/消費/失効を集計（毎月1日 JST 03:00）
+3. **失効予定表示**: UI に「◯日後に△pt失効予定」インジケータを表示（30日以内）
+
+### Cloud Scheduler 設定
+
+#### 1. ポイント失効処理（expirePointsScheduled）
+
+```bash
+# Cloud Scheduler 作成コマンド
+gcloud scheduler jobs create pubsub expire-points-daily \
+  --location=asia-northeast1 \
+  --schedule="0 18 * * *" \
+  --time-zone="UTC" \
+  --topic="firebase-schedule-expirePointsScheduled-asia-northeast1" \
+  --message-body="{}" \
+  --description="Daily point expiration at JST 03:00"
+```
+
+**スケジュール詳細**:
+- **Cron式**: `0 18 * * *` (UTC 18:00 = JST 03:00)
+- **タイムゾーン**: UTC（重要: JST 変換が必要）
+- **実行内容**:
+  1. 全ユーザーの pointLedger から `expiresAt <= now` のエントリを検索
+  2. 失効対象がある場合、トランザクションで以下を実行:
+     - users/{uid}.totalPoints から減算
+     - pointLedger に type: "expire" のエントリを追加
+     - 失効済みエントリに expiredProcessed フラグを設定
+  3. バッチサイズ: 500エントリ/実行
+
+**注意事項**:
+- JST 03:00 = UTC 18:00（前日）
+- Cloud Scheduler のタイムゾーンは UTC で設定
+- 夏時間は日本にないため、年間を通じて同じ換算
+
+#### 2. 月次統計計算（calculateMonthlyStatsScheduled）
+
+```bash
+# Cloud Scheduler 作成コマンド
+gcloud scheduler jobs create pubsub calculate-monthly-stats \
+  --location=asia-northeast1 \
+  --schedule="0 18 1 * *" \
+  --time-zone="UTC" \
+  --topic="firebase-schedule-calculateMonthlyStatsScheduled-asia-northeast1" \
+  --message-body="{}" \
+  --description="Monthly stats calculation at JST 03:00 on 1st"
+```
+
+**スケジュール詳細**:
+- **Cron式**: `0 18 1 * *` (毎月1日 UTC 18:00 = JST 03:00)
+- **タイムゾーン**: UTC
+- **実行内容**:
+  1. 前月の YYYYMM を計算（JST基準）
+  2. 全ユーザーに対して以下を実行:
+     - 前月の pointLedger を集計
+     - granted（付与）、spent（消費）、expired（失効）、net（純増）を計算
+     - users/{uid}/stats/{YYYYMM} に保存
+  3. バッチサイズ: 100ユーザー/実行
+
+**stats ドキュメント構造**:
+```typescript
+{
+  month: "202501",        // YYYYMM
+  granted: 150,           // 付与ポイント合計
+  spent: 50,              // 消費ポイント合計
+  expired: 10,            // 失効ポイント合計
+  net: 90,                // 純増（granted - spent - expired）
+  closingBalance: 340,    // 月末残高
+  createdAt: Timestamp    // 作成日時
+}
+```
+
+### 手動デバッグ手順
+
+開発用の callable 関数が用意されています：
+
+#### 特定ユーザーのポイント失効処理
+
+```dart
+// Flutter から実行
+final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast1');
+final result = await functions.httpsCallable('expirePointsDev').call({
+  'uid': 'user123',
+});
+
+print(result.data);
+// { ok: true, uid: 'user123', expired: 120, entries: 3 }
+```
+
+#### 特定ユーザーの月次統計計算
+
+```dart
+// Flutter から実行
+final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast1');
+final result = await functions.httpsCallable('calculateMonthlyStatsDev').call({
+  'uid': 'user123',
+  'month': '202501',  // オプション、省略時は前月
+});
+
+print(result.data);
+// { ok: true, uid: 'user123', month: '202501', stats: {...} }
+```
+
+#### Firebase Emulator での動作確認
+
+```bash
+# Emulator起動
+firebase emulators:start
+
+# 別ターミナルで curl実行
+curl -X POST http://localhost:5001/soup-rewards-app/asia-northeast1/expirePointsDev \
+  -H "Content-Type: application/json" \
+  -d '{"data": {"uid": "test-user-123"}}'
+```
+
+### UTC/JST 時刻換算表
+
+| JST      | UTC（前日） | Cron式         | 説明                 |
+|----------|-------------|----------------|----------------------|
+| 00:00    | 15:00       | `0 15 * * *`   | 深夜0時              |
+| 03:00    | 18:00       | `0 18 * * *`   | 深夜3時（推奨）      |
+| 06:00    | 21:00       | `0 21 * * *`   | 早朝6時              |
+| 09:00    | 00:00       | `0 0 * * *`    | 朝9時                |
+| 12:00    | 03:00       | `0 3 * * *`    | 正午                 |
+
+**換算式**: `JST時刻 - 9時間 = UTC時刻`
+
+### UI: 失効予定インジケータ
+
+PointsScreen に自動的に表示されます：
+
+```
+┌─────────────────────────────────────────┐
+│ ⚠️  14日後に 120pt 失効予定              │
+└─────────────────────────────────────────┘
+```
+
+**表示条件**:
+- 30日以内に失効予定のポイントがある場合のみ表示
+- 失効予定ポイントの合計を表示
+- 最も早い失効日までの日数を表示
+
+**非表示条件**:
+- 失効予定ポイントが0の場合
+- 失効予定日が30日より先の場合
+
+### トラブルシューティング
+
+#### Q1: Scheduler が実行されない
+
+**確認事項**:
+1. Cloud Scheduler API が有効化されているか確認
+   ```bash
+   gcloud services enable cloudscheduler.googleapis.com
+   ```
+2. Pub/Sub トピックが正しく作成されているか確認
+   ```bash
+   gcloud pubsub topics list --filter="name:firebase-schedule"
+   ```
+3. Functions のログを確認
+   ```bash
+   gcloud functions logs read expirePointsScheduled --limit 50
+   ```
+
+#### Q2: タイムゾーンがずれている
+
+**解決方法**:
+- Cloud Scheduler のタイムゾーンは必ず `UTC` に設定
+- Cron式で9時間前の時刻を指定（JST 03:00 → UTC 18:00）
+- Functions 内部の日時計算は JST 基準で実装済み
+
+#### Q3: expirePointsDev が認証エラーになる
+
+**解決方法**:
+- Firebase Auth でログイン済みであることを確認
+- uid パラメータを正しく指定
+- 本番環境では管理者のみ実行可能にする設定を追加推奨
+
+---
+
 ## 📞 サポート
 
 ### 開発者向け

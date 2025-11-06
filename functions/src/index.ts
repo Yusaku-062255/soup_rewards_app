@@ -4,6 +4,10 @@ import * as admin from "firebase-admin";
 admin.initializeApp();
 const region = "asia-northeast1";
 
+// Export point expiration and stats functions
+export * from "./points_expire";
+export * from "./points_stats";
+
 /**
  * JST（日本標準時）で今日の日付IDを取得
  * @returns YYYYMMDD形式の文字列（例: 20250131）
@@ -40,32 +44,52 @@ function secondsUntilJSTMidnight(): number {
  * @param type ポイント種別
  * @param delta ポイント増減量
  * @param note 備考
+ * @param expiresAt 失効日時（オプション、1年後に自動設定）
  */
 async function addPointsInTransaction(
   tx: admin.firestore.Transaction,
   uid: string,
-  type: "gacha" | "booking" | "manual",
+  type: "gacha" | "booking" | "manual" | "expire",
   delta: number,
-  note: string
+  note: string,
+  expiresAt?: admin.firestore.Timestamp
 ): Promise<void> {
-  const pointsRef = admin.firestore().collection("users").doc(uid).collection("points").doc("total");
-  const ledgerRef = admin.firestore().collection("users").doc(uid).collection("pointLedger").doc();
+  const userRef = admin.firestore().collection("users").doc(uid);
+  const ledgerRef = userRef.collection("pointLedger").doc();
 
-  const pointsSnap = await tx.get(pointsRef);
-  const currentTotal = pointsSnap.exists ? (pointsSnap.data()?.total || 0) : 0;
+  const userSnap = await tx.get(userRef);
+  const currentTotal = userSnap.exists ? (userSnap.data()?.totalPoints || 0) : 0;
   const newTotal = currentTotal + delta;
 
-  tx.set(pointsRef, {
-    total: newTotal,
+  // users.totalPoints を更新
+  tx.update(userRef, {
+    totalPoints: newTotal,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  }, { merge: true });
+  });
 
-  tx.set(ledgerRef, {
+  // ポイント付与の場合、1年後に失効するように expiresAt を設定
+  let finalExpiresAt = expiresAt;
+  if (!finalExpiresAt && delta > 0) {
+    const oneYearLater = new Date();
+    oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+    finalExpiresAt = admin.firestore.Timestamp.fromDate(oneYearLater);
+  }
+
+  // pointLedger に記録
+  const ledgerData: any = {
     type,
     delta,
+    balance: newTotal,
     note,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
+    expiredProcessed: false, // 失効処理済みフラグ（初期値: false）
+  };
+
+  if (finalExpiresAt) {
+    ledgerData.expiresAt = finalExpiresAt;
+  }
+
+  tx.set(ledgerRef, ledgerData);
 }
 
 /**

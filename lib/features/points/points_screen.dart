@@ -127,6 +127,47 @@ class _PointsScreenState extends ConsumerState<PointsScreen> {
                   ),
                   const SizedBox(height: DesignTokens.spaceBase),
 
+                  // Expiring points indicator
+                  FutureBuilder<({int totalPoints, DateTime? earliestExpiry})>(
+                    future: pointsRepo.getExpiringPoints(user.uid),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const SizedBox.shrink();
+
+                      final data = snapshot.data!;
+                      if (data.totalPoints == 0 || data.earliestExpiry == null) {
+                        return const SizedBox.shrink();
+                      }
+
+                      final daysUntilExpiry = data.earliestExpiry!.difference(DateTime.now()).inDays;
+
+                      return SoupCard(
+                        backgroundColor: DesignTokens.warning.withOpacity(0.1),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              CupertinoIcons.exclamationmark_triangle,
+                              color: DesignTokens.warning,
+                              size: 24,
+                            ),
+                            const SizedBox(width: DesignTokens.spaceSmall),
+                            Expanded(
+                              child: Text(
+                                '${daysUntilExpiry}日後に ${data.totalPoints}pt 失効予定',
+                                style: const TextStyle(
+                                  fontSize: DesignTokens.fontSizeBody,
+                                  color: DesignTokens.textPrimary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: DesignTokens.spaceBase),
+
                   // Daily gacha button
                   ElevatedButton.icon(
                     onPressed: _isClaimingGacha ? null : () => _claimDailyGacha(context),

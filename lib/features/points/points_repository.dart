@@ -17,6 +17,7 @@ class PointEntry {
   final int balance;
   final String note;
   final DateTime createdAt;
+  final DateTime? expiresAt;
 
   PointEntry({
     required this.id,
@@ -25,6 +26,7 @@ class PointEntry {
     required this.balance,
     required this.note,
     required this.createdAt,
+    this.expiresAt,
   });
 
   factory PointEntry.fromFirestore(String id, Map<String, dynamic> data) {
@@ -35,6 +37,9 @@ class PointEntry {
       balance: data['balance'] as int? ?? 0,
       note: data['note'] as String,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      expiresAt: data['expiresAt'] != null
+          ? (data['expiresAt'] as Timestamp).toDate()
+          : null,
     );
   }
 }
@@ -129,5 +134,45 @@ class PointsRepository {
     final result = await callable.call();
 
     return GachaResult.fromJson(result.data as Map<String, dynamic>);
+  }
+
+  /// Get points expiring within the next 30 days
+  /// Returns total points and earliest expiry date
+  Future<({int totalPoints, DateTime? earliestExpiry})> getExpiringPoints(
+      String userId) async {
+    final now = DateTime.now();
+    final thirtyDaysLater = now.add(const Duration(days: 30));
+
+    final snapshot = await firestore
+        .collection('users')
+        .doc(userId)
+        .collection('pointLedger')
+        .where('expiresAt',
+            isGreaterThan: Timestamp.fromDate(now),
+            isLessThanOrEqualTo: Timestamp.fromDate(thirtyDaysLater))
+        .where('delta', isGreaterThan: 0)
+        .orderBy('expiresAt', descending: false)
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      return (totalPoints: 0, earliestExpiry: null);
+    }
+
+    int totalPoints = 0;
+    DateTime? earliestExpiry;
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      totalPoints += data['delta'] as int? ?? 0;
+
+      if (earliestExpiry == null) {
+        final expiresAt = data['expiresAt'] as Timestamp?;
+        if (expiresAt != null) {
+          earliestExpiry = expiresAt.toDate();
+        }
+      }
+    }
+
+    return (totalPoints: totalPoints, earliestExpiry: earliestExpiry);
   }
 }
