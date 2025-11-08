@@ -1,5 +1,7 @@
+import 'dart:developer' as dev;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'design/theme.dart';
 import 'features/home/home_screen.dart';
 import 'features/booking/booking_screen.dart';
@@ -15,6 +17,24 @@ class SoupRewardsApp extends StatefulWidget {
 
 class _SoupRewardsAppState extends State<SoupRewardsApp> {
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _ensureDevSetup();
+  }
+
+  /// 開発用セットアップ: 給油券テンプレートの存在保証
+  Future<void> _ensureDevSetup() async {
+    try {
+      final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast1');
+      final result = await functions.httpsCallable('ensureFuelVoucherTemplate').call();
+      final message = result.data['message'] ?? 'Template check complete';
+      dev.log('Fuel voucher template: $message', name: 'dev_setup');
+    } catch (e) {
+      dev.log('Failed to ensure fuel voucher template: $e', name: 'dev_setup');
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {

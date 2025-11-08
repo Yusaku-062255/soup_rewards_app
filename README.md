@@ -50,6 +50,75 @@ firebase deploy --only firestore:rules
 
 > **重要**: Cloud Functions（claimDailyGacha/createBooking/redeemCoupon）はアプリ動作に必須です。
 
+### 6. 開発用データシード（実機検証を速くする）
+
+アプリ起動時に自動で給油券テンプレートが作成されます。予約機能を検証する場合は、以下の手順でスロットをシードします。
+
+#### スロットのシード（3日分の wash スロット作成）
+
+Xcodeのコンソールで以下を実行（または Firebase Console の Cloud Functions ページから手動実行）:
+
+```dart
+// Flutter アプリ内で実行（例: HomeScreen の onPressed など）
+final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast1');
+final result = await functions.httpsCallable('seedSlotsDev').call({
+  'centerId': 'default',
+  'daysAhead': 3,
+});
+print('Seed result: ${result.data}');
+// 出力例: {ok: true, created: 9, skipped: 0, dates: [20250115, 20250116, 20250117]}
+```
+
+**または Firebase Console から**:
+1. Firebase Console → Functions → `seedSlotsDev` を選択
+2. 「テスト」タブで以下を入力:
+   ```json
+   {
+     "centerId": "default",
+     "daysAhead": 3
+   }
+   ```
+3. 「テストを実行」をクリック
+
+**結果**: 今日から3日分、毎日 09:00/10:00/11:00 の wash スロット（capacity=3）が作成されます。既に存在する場合はスキップされます。
+
+#### リマインダーテスト（開発用）
+
+予約リマインダー機能をテストする場合:
+
+```dart
+final result = await functions.httpsCallable('sendBookingRemindersDev').call({
+  'centerId': 'default',
+  'withinHours': 26,
+});
+print('Reminder result: ${result.data}');
+// 出力例: {ok: true, sent: 2, skipped: 0}
+```
+
+**結果**: 26時間以内の confirmed 予約に `reminderSent=true` フラグが立ちます（重複送信なし）。
+
+#### 給油券テンプレート確認
+
+アプリ起動時に自動実行されますが、手動で確認する場合:
+
+```dart
+final result = await functions.httpsCallable('ensureFuelVoucherTemplate').call();
+print('Template result: ${result.data}');
+// 初回: {ok: true, message: "Template created", templateId: "fuel_voucher_500yen"}
+// 2回目以降: {ok: true, message: "Template already exists", templateId: "fuel_voucher_500yen"}
+```
+
+#### Xcode での実行手順
+
+1. Xcode で `ios/Runner.xcworkspace` を開く
+2. Team を選択、Bundle ID を設定
+3. 実機を接続して `Run` (⌘R)
+4. アプリ起動後、Xcode のコンソールで以下のログを確認:
+   ```
+   [dev_setup] Fuel voucher template: Template already exists
+   ```
+5. 予約機能をテストする場合、上記のシード関数を実行
+
 ---
 ## 📱 主要機能
 
