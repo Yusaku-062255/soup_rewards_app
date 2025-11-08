@@ -33,71 +33,40 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId)
         && request.resource.data.keys().hasOnly(
-          ['make','model','year','vin','nickname','createdAt','updatedAt'])
+          ['make','model','year','vin','plate','color','notes','createdAt','updatedAt','createdBy','updatedBy'])
         && request.resource.data.make is string
         && request.resource.data.model is string
         && request.resource.data.year is number
         && (!('vin' in request.resource.data) || request.resource.data.vin is string)
-        && (!('nickname' in request.resource.data) || request.resource.data.nickname is string)
+        && (!('plate' in request.resource.data) || request.resource.data.plate is string)
+        && (!('color' in request.resource.data) || request.resource.data.color is string)
+        && (!('notes' in request.resource.data) || request.resource.data.notes is string)
         && request.resource.data.createdAt is timestamp
         && (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp);
-      allow update: if isOwner(userId) || isAdmin()
+      allow update: if isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['createdAt','createdBy','updatedBy'])
         && request.resource.data.diff(resource.data).changedKeys().hasOnly(
-          ['make','model','year','vin','nickname','updatedAt'])
+          ['make','model','year','vin','plate','color','notes','updatedAt'])
         && request.resource.data.updatedAt is timestamp;
-      allow delete: if isOwner(userId) || isAdmin();
+      allow delete: if false; // 物理削除禁止（論理削除フラグで運用）
 
-      // serviceHistory
+      // serviceHistory（店舗/Functionsのみ書込）
       match /serviceHistory/{historyId} {
         allow read: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId)
-          && request.resource.data.keys().hasOnly(
-            ['serviceAt','odometer','items','note','shop','createdAt','updatedAt'])
-          && request.resource.data.serviceAt is timestamp
-          && (!('odometer' in request.resource.data) || request.resource.data.odometer is number)
-          && (!('items' in request.resource.data) || request.resource.data.items is list)
-          && (!('note' in request.resource.data) || request.resource.data.note is string)
-          && (!('shop' in request.resource.data) || request.resource.data.shop is string)
-          && request.resource.data.createdAt is timestamp
-          && (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp);
-        allow update: if isOwner(userId) || isAdmin()
-          && request.resource.data.diff(resource.data).changedKeys().hasOnly(
-            ['serviceAt','odometer','items','note','shop','updatedAt'])
-          && request.resource.data.updatedAt is timestamp;
-        allow delete: if isOwner(userId) || isAdmin();
+        allow write: if false; // 店舗/Functionsのみ書込
       }
 
-      // warranties
+      // warranties（店舗/Functionsのみ書込）
       match /warranties/{warrantyId} {
         allow read: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId)
-          && request.resource.data.keys().hasOnly(
-            ['provider','policyNumber','startAt','endAt','coverage','createdAt','updatedAt'])
-          && request.resource.data.provider is string
-          && (!('policyNumber' in request.resource.data) || request.resource.data.policyNumber is string)
-          && request.resource.data.startAt is timestamp
-          && request.resource.data.endAt is timestamp
-          && request.resource.data.endAt > request.resource.data.startAt
-          && (!('coverage' in request.resource.data) || request.resource.data.coverage is string)
-          && request.resource.data.createdAt is timestamp
-          && (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp);
-        allow update: if isOwner(userId) || isAdmin()
-          && request.resource.data.diff(resource.data).changedKeys().hasOnly(
-            ['provider','policyNumber','startAt','endAt','coverage','updatedAt'])
-          && request.resource.data.updatedAt is timestamp;
-        allow delete: if isOwner(userId) || isAdmin();
+        allow write: if false; // 店舗/Functionsのみ書込
       }
     }
 
     // bookings（トップレベル）
     match /bookings/{bookingId} {
       allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if false; // Cloud Functionsのみ（createBooking Callable）
-      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid)
-        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status','updatedAt'])
-        && request.resource.data.status in ['confirmed','cancelled']
-        && request.resource.data.updatedAt is timestamp;
-      allow delete: if isAdmin();
+      allow write: if false; // 予約作成/取消は Functions のみ
     }
 
     // gachaClaims（Cloud Functionsのみが書込可能）

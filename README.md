@@ -950,6 +950,267 @@ PointsScreen に自動的に表示されます：
 
 ---
 
+## 🔐 Firestore Rules 検証（Rules Playground）
+
+### 概要
+
+Firestore Security Rules は、クライアント側からの不正な書き込みを防ぐ最後の砦です。
+以下の Rules Playground 検証手順を使用して、ルールが正しく機能していることを確認してください。
+
+### Rules Playground アクセス方法
+
+1. Firebase Console を開く
+2. Firestore Database → Rules タブをクリック
+3. 右上の「Rules Playground」ボタンをクリック
+
+### 検証シナリオ
+
+#### ✅ シナリオ1: 自分の vehicles を読み取り（Allowed）
+
+```
+Location: /users/test-user-123/vehicles/vehicle-001
+Type: get
+Auth: Authenticated (Custom UID: test-user-123)
+
+Expected Result: ✅ Allowed
+Reason: 本人は自分の車両情報を読み取れる
+```
+
+**手順**:
+1. Location に `/users/test-user-123/vehicles/vehicle-001` を入力
+2. Simulation type: `get` を選択
+3. Auth: `Authenticated` を選択
+4. Provider: `Custom` を選択
+5. UID に `test-user-123` を入力
+6. 「Run」をクリック
+
+**期待結果**: ✅ **Allow** が表示される
+
+---
+
+#### ❌ シナリオ2: vehicles の物理削除（Denied）
+
+```
+Location: /users/test-user-123/vehicles/vehicle-001
+Type: delete
+Auth: Authenticated (Custom UID: test-user-123)
+
+Expected Result: ❌ Permission denied
+Reason: 物理削除は禁止（論理削除フラグで運用）
+```
+
+**手順**:
+1. Location に `/users/test-user-123/vehicles/vehicle-001` を入力
+2. Simulation type: `delete` を選択
+3. Auth: `Authenticated` を選択
+4. UID に `test-user-123` を入力
+5. 「Run」をクリック
+
+**期待結果**: ❌ **Permission denied** が表示される
+
+---
+
+#### ❌ シナリオ3: serviceHistory への書き込み（Denied）
+
+```
+Location: /users/test-user-123/vehicles/vehicle-001/serviceHistory/history-001
+Type: create
+Auth: Authenticated (Custom UID: test-user-123)
+
+Data:
+{
+  "serviceAt": "2025-01-15T10:00:00Z",
+  "odometer": 50000,
+  "items": ["オイル交換", "タイヤローテーション"],
+  "shop": "SOUP 徳島店",
+  "createdAt": "2025-01-15T10:00:00Z"
+}
+
+Expected Result: ❌ Permission denied
+Reason: 整備履歴は店舗/Functions のみが書き込める
+```
+
+**手順**:
+1. Location に `/users/test-user-123/vehicles/vehicle-001/serviceHistory/history-001` を入力
+2. Simulation type: `create` を選択
+3. Auth: `Authenticated` を選択
+4. UID に `test-user-123` を入力
+5. Data に上記 JSON を入力
+6. 「Run」をクリック
+
+**期待結果**: ❌ **Permission denied** が表示される
+
+---
+
+#### ❌ シナリオ4: warranties への書き込み（Denied）
+
+```
+Location: /users/test-user-123/vehicles/vehicle-001/warranties/warranty-001
+Type: create
+Auth: Authenticated (Custom UID: test-user-123)
+
+Data:
+{
+  "provider": "SOUP保証プラン",
+  "policyNumber": "W-2025-001",
+  "startAt": "2025-01-01T00:00:00Z",
+  "endAt": "2026-01-01T00:00:00Z",
+  "coverage": "3年間総合保証",
+  "createdAt": "2025-01-15T10:00:00Z"
+}
+
+Expected Result: ❌ Permission denied
+Reason: 保証情報は店舗/Functions のみが書き込める
+```
+
+**手順**:
+1. Location に `/users/test-user-123/vehicles/vehicle-001/warranties/warranty-001` を入力
+2. Simulation type: `create` を選択
+3. Auth: `Authenticated` を選択
+4. UID に `test-user-123` を入力
+5. Data に上記 JSON を入力
+6. 「Run」をクリック
+
+**期待結果**: ❌ **Permission denied** が表示される
+
+---
+
+#### ❌ シナリオ5: bookings への書き込み（Denied）
+
+```
+Location: /bookings/booking-001
+Type: create
+Auth: Authenticated (Custom UID: test-user-123)
+
+Data:
+{
+  "userId": "test-user-123",
+  "centerId": "default",
+  "date": "20250120",
+  "slotId": "1000",
+  "serviceType": "オイル交換",
+  "status": "confirmed",
+  "createdAt": "2025-01-15T10:00:00Z"
+}
+
+Expected Result: ❌ Permission denied
+Reason: 予約作成は Functions のみ（createBooking Callable）
+```
+
+**手順**:
+1. Location に `/bookings/booking-001` を入力
+2. Simulation type: `create` を選択
+3. Auth: `Authenticated` を選択
+4. UID に `test-user-123` を入力
+5. Data に上記 JSON を入力
+6. 「Run」をクリック
+
+**期待結果**: ❌ **Permission denied** が表示される
+
+---
+
+#### ✅ シナリオ6: 自分の bookings を読み取り（Allowed）
+
+```
+Location: /bookings/booking-001
+Type: get
+Auth: Authenticated (Custom UID: test-user-123)
+
+Existing Data:
+{
+  "userId": "test-user-123",
+  "centerId": "default",
+  "date": "20250120",
+  "slotId": "1000",
+  "serviceType": "オイル交換",
+  "status": "confirmed"
+}
+
+Expected Result: ✅ Allowed
+Reason: 本人は自分の予約を読み取れる
+```
+
+**手順**:
+1. Location に `/bookings/booking-001` を入力
+2. Simulation type: `get` を選択
+3. Auth: `Authenticated` を選択
+4. UID に `test-user-123` を入力
+5. Existing data に上記 JSON を入力（`get` では必要）
+6. 「Run」をクリック
+
+**期待結果**: ✅ **Allow** が表示される
+
+---
+
+#### ❌ シナリオ7: 他人の bookings を読み取り（Denied）
+
+```
+Location: /bookings/booking-001
+Type: get
+Auth: Authenticated (Custom UID: other-user-456)
+
+Existing Data:
+{
+  "userId": "test-user-123",
+  "centerId": "default",
+  "status": "confirmed"
+}
+
+Expected Result: ❌ Permission denied
+Reason: 他人の予約は読み取れない
+```
+
+**手順**:
+1. Location に `/bookings/booking-001` を入力
+2. Simulation type: `get` を選択
+3. Auth: `Authenticated` を選択
+4. UID に `other-user-456` を入力（重要: userId と異なる）
+5. Existing data に上記 JSON を入力
+6. 「Run」をクリック
+
+**期待結果**: ❌ **Permission denied** が表示される
+
+---
+
+### 検証チェックリスト
+
+すべてのシナリオで期待通りの結果が得られることを確認してください：
+
+- ✅ シナリオ1: vehicles 読み取り → **Allowed**
+- ❌ シナリオ2: vehicles 削除 → **Permission denied**
+- ❌ シナリオ3: serviceHistory 作成 → **Permission denied**
+- ❌ シナリオ4: warranties 作成 → **Permission denied**
+- ❌ シナリオ5: bookings 作成 → **Permission denied**
+- ✅ シナリオ6: 自分の bookings 読み取り → **Allowed**
+- ❌ シナリオ7: 他人の bookings 読み取り → **Permission denied**
+
+### トラブルシューティング
+
+#### Q1: すべてのシナリオで "simulated" と表示される
+
+**原因**: Playground はシミュレーションモードです
+
+**解決方法**: これは正常です。"Allow" または "Permission denied" の結果を確認してください
+
+#### Q2: Allowed/Denied が期待と逆になる
+
+**原因**: ルールが正しくデプロイされていない可能性があります
+
+**解決方法**:
+```bash
+firebase deploy --only firestore:rules
+```
+でルールを再デプロイし、数分待ってから再度テストしてください
+
+#### Q3: UID の設定方法がわからない
+
+**解決方法**:
+1. Simulation type で `Authenticated` を選択
+2. Provider で `Custom` を選択
+3. UID フィールドに任意のユーザーID（例: `test-user-123`）を入力
+
+---
+
 ## 📞 サポート
 
 ### 開発者向け
