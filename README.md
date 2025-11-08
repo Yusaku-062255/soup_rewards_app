@@ -764,6 +764,277 @@ Reason: 保護フィールド以外の更新は許可
 
 ---
 
+## 🎟️ 給油券（クーポン最小）の使い方
+
+### 概要
+
+Epic 3 最小実装として、ENEOS給油券（500円分）をポイント交換で取得し、店頭でスタッフPIN入力により消込みできる機能を実装しました。
+
+### 機能
+
+- **ポイント交換**: 500pt で 500円分の給油券を発行
+- **有効期限**: 発行から30日間
+- **1回限り使用**: 同一クーポンは1度しか使用できません
+- **店頭消込み**: スタッフが6桁PINを入力して使用確定
+
+### テンプレート初期化
+
+初回のみ、テンプレートを作成する必要があります：
+
+```dart
+// アプリ起動時に自動実行される、または手動で実行
+final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast1');
+await functions.httpsCallable('ensureFuelVoucherTemplate').call();
+```
+
+または、Firestore Console で直接作成：
+
+```
+コレクション: couponTemplates
+ドキュメントID: fuel_voucher_500yen
+
+データ:
+{
+  title: "Fuel Voucher (ENEOS)",
+  type: "flat_yen",
+  discountValueYen: 500,
+  pointsCost: 500,
+  validityDays: 30,
+  active: true,
+  createdAt: [Timestamp],
+  updatedAt: [Timestamp]
+}
+```
+
+### スタッフPIN設定
+
+店頭での消込みに使用する6桁PINを設定します：
+
+```bash
+# Node.js 環境で実行（salt生成とハッシュ計算）
+node -e "
+const crypto = require('crypto');
+const pin = '123456'; // 実際のPINに変更
+const salt = crypto.randomBytes(16).toString('hex');
+const hash = crypto.createHash('sha256').update(pin + salt).digest('hex');
+console.log('Salt:', salt);
+console.log('Hash:', hash);
+"
+```
+
+Firestore Console で設定を保存：
+
+```
+コレクション: serviceCenters/default/settings
+ドキュメントID: redeem
+
+データ:
+{
+  redeemPinHash: "[上記で生成したHash]",
+  salt: "[上記で生成したSalt]"
+}
+```
+
+### 使い方（ユーザー側）
+
+#### 1. 給油券を発行
+
+1. アプリを開き、ログイン
+2. 「クーポン」タブをタップ
+3. 現在のポイント残高が 500pt 以上あることを確認
+4. 「給油券に交換」ボタンをタップ
+5. 成功すると、8桁のクーポンコードが表示される
+
+#### 2. 店頭で使用
+
+1. 「マイクーポン」リストから使いたいクーポンを選択
+2. 「店頭で使う」ボタンをタップ
+3. スタッフに8桁のコードを提示
+4. スタッフが6桁PINを入力
+5. 使用完了！ ステータスが「使用済み」になる
+
+### Firestore データ構造
+
+#### クーポンテンプレート
+
+```
+couponTemplates/{templateId}
+{
+  title: string,           // "Fuel Voucher (ENEOS)"
+  type: string,            // "flat_yen"
+  discountValueYen: number, // 500
+  pointsCost: number,       // 500
+  validityDays: number,     // 30
+  active: boolean,          // true
+  createdAt: Timestamp,
+  updatedAt: Timestamp
+}
+```
+
+#### ユーザークーポン
+
+```
+users/{uid}/coupons/{couponId}
+{
+  templateId: string,       // "fuel_voucher_500yen"
+  code: string,             // "ABCD1234" (8桁)
+  status: string,           // "active" | "redeemed" | "expired"
+  issuedAt: Timestamp,
+  expiresAt: Timestamp,
+  redeemedAt?: Timestamp,
+  redeemedBy?: {
+    centerId: string,
+    staffId: string
+  },
+  meta: {
+    discountValueYen: number,
+    type: string,
+    title: string
+  }
+}
+```
+
+### Cloud Functions
+
+#### ensureFuelVoucherTemplate
+
+テンプレートが存在しない場合のみ作成（idempotent）。
+
+#### redeemPointsForFuelVoucher
+
+ポイント消費して給油券を発行。
+
+**入力**:
+```json
+{
+  "templateId": "fuel_voucher_500yen"
+}
+```
+
+**トランザクション処理**:
+1. ポイント残高チェック（不足時は `insufficient_points` エラー）
+2. `users.totalPoints` から減算
+3. `pointLedger` に記録
+4. `coupons` に新規クーポン追加（code生成、有効期限設定）
+
+**出力**:
+```json
+{
+  "ok": true,
+  "couponId": "xxx",
+  "code": "ABCD1234",
+  "expiresAt": "2025-02-15T00:00:00Z",
+  "discountValueYen": 500
+}
+```
+
+#### redeemFuelVoucherAtStore
+
+店頭でスタッフPINを使ってクーポンを消込み。
+
+**入力**:
+```json
+{
+  "couponId": "xxx",
+  "centerId": "default",
+  "staffPin": "123456"
+}
+```
+
+**処理**:
+1. スタッフPIN検証（ハッシュ比較、不正時は `invalid_staff_pin` エラー）
+2. クーポン状態確認（owner, active, 有効期限内）
+3. トランザクションで `status` を `redeemed` に更新
+
+**出力**:
+```json
+{
+  "ok": true,
+  "redeemedAt": "2025-01-15T10:00:00Z",
+  "discountValueYen": 500
+}
+```
+
+### エラーメッセージ
+
+すべてのエラーは日本語で表示されます：
+
+| エラーコード | メッセージ |
+|-------------|----------|
+| `insufficient_points` | ポイントが不足しています |
+| `invalid_staff_pin` | スタッフ用PINが正しくありません |
+| `already_redeemed` | このクーポンは既に使用済みです |
+| `expired` | このクーポンは有効期限が切れています |
+| `functions/not-found` | クーポンが見つかりません |
+| `functions/unauthenticated` | ログインが必要です。再度ログインしてください。 |
+| `functions/permission-denied` | 権限がありません |
+| `functions/unavailable` | サーバーに接続できません。ネットワーク接続を確認してください。 |
+| `functions/deadline-exceeded` | 処理がタイムアウトしました。もう一度お試しください。 |
+
+### デプロイ手順
+
+#### 1. Cloud Functions デプロイ
+
+```bash
+cd functions
+npm install
+npm run build
+npm run deploy
+```
+
+#### 2. Firestore Rules デプロイ
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+#### 3. テンプレート初期化
+
+アプリ起動時に自動実行、または手動で `ensureFuelVoucherTemplate` を呼び出し。
+
+#### 4. スタッフPIN設定
+
+上記「スタッフPIN設定」セクションの手順に従う。
+
+### セキュリティ
+
+- ✅ `users/{uid}/coupons` の直接書き込みは禁止（write: false）
+- ✅ クーポン発行・消込みはすべて Cloud Functions 経由
+- ✅ スタッフPINはハッシュ化して保存（salt付き SHA-256）
+- ✅ トランザクションによるポイント残高の整合性保証
+- ✅ 同一クーポンの二重使用を防止
+
+### トラブルシューティング
+
+#### Q1: 「ポイントが不足しています」と表示される
+
+**原因**: 現在のポイント残高が 500pt 未満です
+
+**解決方法**: デイリーガチャや予約完了でポイントを貯めてから再度交換してください
+
+#### Q2: 「スタッフ用PINが正しくありません」と表示される
+
+**原因**: 入力されたPINが設定されたPINと一致しません
+
+**解決方法**: 正しい6桁PINを入力してください。設定を確認する場合は Firestore Console で `serviceCenters/default/settings/redeem` を確認
+
+#### Q3: クーポンが「期限切れ」になっている
+
+**原因**: 発行から30日経過しました
+
+**解決方法**: 有効期限内に使用してください。期限切れのクーポンは使用できません
+
+### 今後の拡張案
+
+1. **交換レート変動**: 需要期はポイントコスト増、閑散期は減で誘導
+2. **予約完了トースト**: 予約完了時に「今だけ給油券」交差導線を追加
+3. **失効警告帯連携**: M7の失効予定表示から「今使う」でクーポン交換
+4. **QR/HMACコード**: PIN方式からQRコード＋HMAC検証に拡張
+5. **複数店舗対応**: centerId を選択可能にする
+6. **複数クーポン種類**: オイル交換券、洗車券など追加
+
+---
+
 ## ⏰ ポイント失効 & 月次集計（Cloud Scheduler）
 
 ### 概要

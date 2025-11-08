@@ -8,6 +8,9 @@ const region = "asia-northeast1";
 export * from "./points_expire";
 export * from "./points_stats";
 
+// Export coupon functions
+export * from "./coupons_fuel";
+
 /**
  * JST（日本標準時）で今日の日付IDを取得
  * @returns YYYYMMDD形式の文字列（例: 20250131）

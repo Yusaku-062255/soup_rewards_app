@@ -99,10 +99,22 @@ service cloud.firestore {
       allow write: if false; // redeemはCallableで処理
     }
 
+    // couponTemplates（公開読取、Functionsのみ書込）
+    match /couponTemplates/{templateId} {
+      allow read: if true; // 全ユーザーが読取可能（テンプレート情報）
+      allow write: if false; // Cloud Functionsのみ
+    }
+
     // serviceCenters（スロット管理、Cloud Functionsのみ書込）
     match /serviceCenters/{centerId}/days/{yyyymmdd}/slots/{slotId} {
       allow read: if isSignedIn(); // 全ログインユーザーが読取可能
       allow write: if false; // Cloud Functionsのみ
+    }
+
+    // serviceCenters settings（管理者のみアクセス）
+    match /serviceCenters/{centerId}/settings {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
     }
   }
 }
