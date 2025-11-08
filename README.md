@@ -1035,6 +1035,274 @@ firebase deploy --only firestore:rules
 
 ---
 
+## 📅 予約システム（Booking Minimal）
+
+### 概要
+
+Epic 4 最小実装として、サービスセンターの予約システムを実装しました。日付とサービス種別を選択し、空き状況を確認して予約を作成できます。予約完了で50ptを獲得し、給油券へのクロスプロモーションも表示されます。
+
+### 機能
+
+- **日付選択**: 本日〜14日後までの日付を選択可能（JST基準）
+- **サービス種別**: 洗車 (wash) / コーティング (coating)
+- **空き状況確認**: リアルタイムでスロットの空き状況を表示
+- **予約作成**: トランザクションで楽観的ロック＋ポイント付与（+50pt）
+- **予約キャンセル**: 自分の予約をキャンセル可能
+- **クロスプロモーション**: 予約完了時に「給油券に交換」リンクを表示
+
+### 使い方
+
+#### 1. 予約を作成
+
+1. アプリを開き、ログイン
+2. 「予約」タブをタップ
+3. サービス種別を選択（洗車 / コーティング）
+4. カレンダーアイコンをタップして日付を選択（本日〜14日後）
+5. 空き状況リストから希望の時間帯を選択
+6. 「予約する」ボタンをタップ
+7. 確認ダイアログで「予約する」をタップ
+8. 成功トーストが表示され、50ptを獲得！
+9. トーストの「給油券に交換」をタップして給油券ページへ移動（オプション）
+
+#### 2. 予約を確認
+
+1. 予約画面の下部「マイ予約」セクションに表示
+2. 予約詳細: サービス種別、日時、ステータス（予約中/キャンセル済）
+3. 予約は新しい順に最大20件表示
+
+#### 3. 予約をキャンセル
+
+1. 「マイ予約」から該当の予約を選択
+2. 「キャンセル」ボタンをタップ
+3. 確認ダイアログで「キャンセルする」をタップ
+4. キャンセル完了！ スロットの空き枠が復活
+
+### Firestore データ構造
+
+#### スロット
+
+```
+serviceCenters/{centerId}/days/{yyyymmdd}/slots/{slotId}
+{
+  time: string,           // "09:00"
+  serviceType: string,    // "wash" | "coating"
+  capacity: number,       // 3
+  reservedCount: number,  // 0
+  version: number,        // 1 (楽観的ロック用)
+  createdAt: Timestamp,
+  updatedAt: Timestamp
+}
+```
+
+#### 予約
+
+```
+bookings/{bookingId}
+{
+  userId: string,
+  centerId: string,
+  slotId: string,
+  date: string,          // "20250115"
+  time: string,          // "09:00"
+  serviceType: string,   // "wash" | "coating"
+  status: string,        // "confirmed" | "cancelled"
+  createdAt: Timestamp,
+  updatedAt: Timestamp,
+  cancelledAt: Timestamp | null
+}
+```
+
+### Cloud Functions
+
+#### 1. listAvailableSlots
+
+空き状況を確認。
+
+**入力**:
+```json
+{
+  "centerId": "default",
+  "date": "20250115",
+  "serviceType": "wash"
+}
+```
+
+**処理**:
+1. 日付が過去でないことを確認（JST基準）
+2. 日付が14日以内であることを確認
+3. 指定されたサービス種別のスロットをクエリ
+4. 各スロットの空き状況を計算 (`available = capacity - reservedCount`)
+
+**出力**:
+```json
+{
+  "ok": true,
+  "slots": [
+    {
+      "id": "slot-001",
+      "time": "09:00",
+      "serviceType": "wash",
+      "capacity": 3,
+      "reservedCount": 1,
+      "available": 2,
+      "version": 1
+    }
+  ]
+}
+```
+
+#### 2. createBooking
+
+予約を作成（楽観的ロック + トランザクション）。
+
+**入力**:
+```json
+{
+  "centerId": "default",
+  "slotId": "slot-001",
+  "date": "20250115",
+  "serviceType": "wash"
+}
+```
+
+**トランザクション処理**:
+1. スロットの存在確認
+2. 空きがあるか確認 (`reservedCount < capacity`)
+3. サービス種別が一致するか確認
+4. スロットの `reservedCount` をインクリメント、`version` をインクリメント（楽観的ロック）
+5. 予約ドキュメントを作成
+6. ユーザーに50ptを付与（`addPointsInTransaction`）
+7. `users.totalBookings` をインクリメント
+
+**出力**:
+```json
+{
+  "ok": true,
+  "bookingId": "booking-123"
+}
+```
+
+**エラー**:
+- `slot_not_found`: スロットが存在しない
+- `slot_full`: スロットが満席
+- `service_type_mismatch`: サービス種別が一致しない
+- `past_date_not_allowed`: 過去の日付は選択不可
+- `date_too_far`: 14日を超える日付は選択不可
+
+#### 3. cancelBooking
+
+予約をキャンセル。
+
+**入力**:
+```json
+{
+  "bookingId": "booking-123"
+}
+```
+
+**トランザクション処理**:
+1. 予約の存在確認
+2. 本人確認 (`userId == context.auth.uid`)
+3. ステータス確認 (`status == "confirmed"`)
+4. 予約の `status` を `"cancelled"` に更新、`cancelledAt` を設定
+5. スロットの `reservedCount` をデクリメント、`version` をインクリメント
+
+**出力**:
+```json
+{
+  "ok": true
+}
+```
+
+**エラー**:
+- `booking_not_found`: 予約が存在しない
+- `not_your_booking`: 他人の予約はキャンセルできない
+- `already_cancelled`: 既にキャンセル済み
+
+### セキュリティ
+
+#### Firestore Rules
+
+```javascript
+// スロット: 読み取りは全ログインユーザー、書き込みはFunctionsのみ
+match /serviceCenters/{centerId}/days/{yyyymmdd}/slots/{slotId} {
+  allow read: if isSignedIn();
+  allow write: if false; // Cloud Functions のみ
+}
+
+// 予約: 本人と管理者のみ読み取り、書き込みはFunctionsのみ
+match /bookings/{bookingId} {
+  allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+  allow write: if false; // Cloud Functions のみ
+}
+```
+
+#### 楽観的ロック
+
+スロットの同時予約による二重予約を防ぐため、`version` フィールドを使用した楽観的ロックを実装：
+
+1. スロット読み取り時に `version` を取得
+2. 更新時に `version` をインクリメント
+3. 別のユーザーが先に予約した場合、トランザクションがリトライされる
+4. 空きがなくなった場合は `slot_full` エラーを返す
+
+### トラブルシューティング
+
+#### Q1: 「スロットが満席です」というエラーが出る
+
+**原因**: 選択した時間帯が既に満席になりました
+
+**解決方法**: 別の時間帯を選択してください。空き状況は自動的に更新されます
+
+#### Q2: 「過去の日付は選択できません」というエラーが出る
+
+**原因**: 選択した日付が過去の日付です（JST基準）
+
+**解決方法**: 本日以降の日付を選択してください
+
+#### Q3: 予約をキャンセルしたのに空き状況が更新されない
+
+**原因**: 画面のリロードが必要です
+
+**解決方法**: 日付を再選択するか、サービス種別を切り替えてください。自動的に空き状況が更新されます
+
+#### Q4: 「この予約をキャンセルする権限がありません」というエラーが出る
+
+**原因**: 他人の予約をキャンセルしようとしています
+
+**解決方法**: 自分の予約のみキャンセルできます。「マイ予約」セクションから自分の予約を確認してください
+
+### クロスプロモーション
+
+予約完了時のトーストに「給油券に交換」アクションを追加し、給油券ページへの導線を提供：
+
+```dart
+ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+    content: const Text('予約が完了しました！50ptを獲得しました'),
+    duration: const Duration(seconds: 5),
+    action: SnackBarAction(
+      label: '給油券に交換',
+      onPressed: () {
+        Navigator.of(context).pushNamed('/coupons');
+      },
+    ),
+  ),
+);
+```
+
+### 今後の拡張案
+
+1. **複数店舗対応**: `centerId` をドロップダウンで選択可能に
+2. **スロット自動生成**: 管理画面から営業日・営業時間を設定してスロット自動生成
+3. **リマインダー通知**: 予約の1日前にプッシュ通知
+4. **チェックイン機能**: 来店時にQRコードでチェックイン→追加ポイント付与
+5. **キャンセル期限**: 予約日の前日までキャンセル可能、当日キャンセルはペナルティ
+6. **予約履歴**: 過去の予約を確認できる履歴画面
+7. **お気に入り時間帯**: よく使う時間帯をお気に入り登録
+
+---
+
 ## ⏰ ポイント失効 & 月次集計（Cloud Scheduler）
 
 ### 概要

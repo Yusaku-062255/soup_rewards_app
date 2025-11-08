@@ -11,6 +11,9 @@ export * from "./points_stats";
 // Export coupon functions
 export * from "./coupons_fuel";
 
+// Export booking functions
+export * from "./bookings_minimal";
+
 /**
  * JST（日本標準時）で今日の日付IDを取得
  * @returns YYYYMMDD形式の文字列（例: 20250131）
@@ -162,147 +165,6 @@ export const claimDailyGacha = functions
         };
   });
 
-/**
- * 予約作成（トランザクション対応・ポイント付与）
- *
- * 仕様:
- * - serviceCenters/{centerId}/days/{YYYYMMDD}/slots/{slotId} のキャパシティを確認
- * - 空きがあれば予約を作成し、reservedCountをインクリメント
- * - 成功時に+50ポイント付与
- *
- * @param data { date: 'YYYY-MM-DD', slotId: 'HHmm', serviceType: string, vehicleId: string }
- * @param context 認証コンテキスト
- * @returns { ok: boolean, bookingId?: string, error?: string }
- */
-export const createBooking = functions
-  .region(region)
-  .https.onCall(async (data, context) => {
-    const uid = context.auth?.uid;
-    if (!uid) {
-      throw new functions.https.HttpsError("unauthenticated", "Login required.");
-    }
-
-    const { date, slotId, serviceType, vehicleId } = data;
-    if (!date || !slotId || !serviceType || !vehicleId) {
-      throw new functions.https.HttpsError("invalid-argument", "Missing required fields.");
-    }
-
-    const centerId = "default";
-    const yyyymmdd = date.replace(/-/g, "");
-    const slotRef = admin
-      .firestore()
-      .collection("serviceCenters")
-      .doc(centerId)
-      .collection("days")
-      .doc(yyyymmdd)
-      .collection("slots")
-      .doc(slotId);
-
-    const bookingRef = admin.firestore().collection("bookings").doc();
-
-    const result = await admin.firestore().runTransaction(async (tx) => {
-      const slotSnap = await tx.get(slotRef);
-      if (!slotSnap.exists) {
-        return { ok: false, error: "slot_not_found" };
-      }
-
-      const slotData = slotSnap.data();
-      const capacity = slotData?.capacity || 0;
-      const reservedCount = slotData?.reservedCount || 0;
-
-      if (reservedCount >= capacity) {
-        return { ok: false, error: "slot_full" };
-      }
-
-      // 予約作成
-      tx.set(bookingRef, {
-        userId: uid,
-        vehicleId,
-        serviceType,
-        date,
-        slotId,
-        centerId,
-        status: "confirmed",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      // スロットのreservedCountをインクリメント
-      tx.update(slotRef, {
-        reservedCount: admin.firestore.FieldValue.increment(1),
-      });
-
-      // ポイント付与
-      await addPointsInTransaction(tx, uid, "booking", 50, "予約完了");
-
-      return { ok: true, bookingId: bookingRef.id };
-    });
-
-    if (!result.ok) {
-      throw new functions.https.HttpsError("failed-precondition", result.error || "Booking failed.");
-    }
-
-    return result;
-  });
-
-/**
- * クーポン使用（トランザクション対応）
- *
- * 仕様:
- * - users/{uid}/coupons/{couponId} を検証（所有者、期限内、未使用）
- * - トランザクションでstatus: 'redeemed' と redeemedAt を設定
- *
- * @param data { couponId: string }
- * @param context 認証コンテキスト
- * @returns { ok: boolean, error?: string }
- */
-export const redeemCoupon = functions
-  .region(region)
-  .https.onCall(async (data, context) => {
-    const uid = context.auth?.uid;
-    if (!uid) {
-      throw new functions.https.HttpsError("unauthenticated", "Login required.");
-    }
-
-    const { couponId } = data;
-    if (!couponId) {
-      throw new functions.https.HttpsError("invalid-argument", "couponId is required.");
-    }
-
-    const couponRef = admin.firestore().collection("users").doc(uid).collection("coupons").doc(couponId);
-
-    const result = await admin.firestore().runTransaction(async (tx) => {
-      const couponSnap = await tx.get(couponRef);
-      if (!couponSnap.exists) {
-        return { ok: false, error: "coupon_not_found" };
-      }
-
-      const couponData = couponSnap.data();
-      if (couponData?.status !== "active") {
-        return { ok: false, error: "coupon_not_active" };
-      }
-
-      const now = admin.firestore.Timestamp.now();
-      const expiresAt = couponData?.expiresAt;
-      if (expiresAt && expiresAt.toMillis() < now.toMillis()) {
-        return { ok: false, error: "coupon_expired" };
-      }
-
-      // クーポンを使用済みに更新
-      tx.update(couponRef, {
-        status: "redeemed",
-        redeemedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      return { ok: true };
-    });
-
-    if (!result.ok) {
-      throw new functions.https.HttpsError("failed-precondition", result.error || "Redeem failed.");
-    }
-
-    return result;
-  });
 
 /**
  * ヘルスチェックエンドポイント
