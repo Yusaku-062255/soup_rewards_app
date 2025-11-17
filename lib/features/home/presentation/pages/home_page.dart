@@ -72,7 +72,7 @@ class HomePage extends ConsumerWidget {
             Text(
               AppConstants.brandMessage,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.white.withOpacity(0.9),
+                color: AppColors.white.withValues(alpha: 0.9),
               ),
             ),
           ],
@@ -83,7 +83,7 @@ class HomePage extends ConsumerWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: AppColors.black.withOpacity(0.1),
+                color: AppColors.black.withValues(alpha: 0.1),
                 offset: const Offset(0, 4),
                 blurRadius: 12,
               ),
@@ -119,7 +119,7 @@ class HomePage extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
+            color: AppColors.primary.withValues(alpha: 0.3),
             offset: const Offset(0, 8),
             blurRadius: 24,
           ),
@@ -131,7 +131,7 @@ class HomePage extends ConsumerWidget {
           Text(
             '現在のポイント',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.white.withOpacity(0.9),
+              color: AppColors.white.withValues(alpha: 0.9),
             ),
           ),
           const SizedBox(height: 8),
@@ -157,7 +157,7 @@ class HomePage extends ConsumerWidget {
           Text(
             '1pt = 1円でガソリンに交換可能',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.white.withOpacity(0.8),
+              color: AppColors.white.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -214,10 +214,10 @@ class HomePage extends ConsumerWidget {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: color.withOpacity(0.3),
+                color: color.withValues(alpha: 0.3),
                 width: 1,
               ),
             ),
@@ -296,7 +296,7 @@ class HomePage extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -410,7 +410,7 @@ class HomePage extends ConsumerWidget {
           Container(
             height: 100,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
                 topRight: Radius.circular(12),

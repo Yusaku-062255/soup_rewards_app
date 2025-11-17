@@ -73,11 +73,11 @@ class AppColors {
   );
 
   // シャドウカラー
-  static Color shadowLight = black.withOpacity(0.08);
-  static Color shadowMedium = black.withOpacity(0.16);
-  static Color shadowDark = black.withOpacity(0.24);
+  static Color shadowLight = black.withValues(alpha: 0.08);
+  static Color shadowMedium = black.withValues(alpha: 0.16);
+  static Color shadowDark = black.withValues(alpha: 0.24);
 
   // オーバーレイカラー
-  static Color overlay = black.withOpacity(0.5);
-  static Color overlayLight = black.withOpacity(0.3);
+  static Color overlay = black.withValues(alpha: 0.5);
+  static Color overlayLight = black.withValues(alpha: 0.3);
 }

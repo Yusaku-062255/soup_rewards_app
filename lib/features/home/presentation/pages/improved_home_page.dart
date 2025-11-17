@@ -135,7 +135,7 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
         ),
         Container(
           decoration: BoxDecoration(
-            color: AppColors.white.withOpacity(0.2),
+            color: AppColors.white.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(12),
           ),
           child: IconButton(
@@ -175,7 +175,7 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.black.withOpacity(0.1),
+            color: AppColors.black.withValues(alpha: 0.1),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -386,7 +386,7 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: AppColors.black.withOpacity(0.05),
+              color: AppColors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -397,7 +397,7 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: action.color.withOpacity(0.1),
+                color: action.color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -470,7 +470,7 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: AppColors.black.withOpacity(0.05),
+            color: AppColors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -482,7 +482,7 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
@@ -597,7 +597,7 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: AppColors.black.withOpacity(0.1),
+            color: AppColors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -660,7 +660,7 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withOpacity(0.3),
+                color: AppColors.primary.withValues(alpha: 0.3),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -674,7 +674,7 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.white.withOpacity(0.2),
+                      color: AppColors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
@@ -697,7 +697,7 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
               Text(
                 '長期間効果が持続する最新のコーティング技術で、あなたの愛車を美しく保護します。',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.white.withOpacity(0.9),
+                  color: AppColors.white.withValues(alpha: 0.9),
                 ),
               ),
               const SizedBox(height: 16),

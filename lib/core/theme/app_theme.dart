@@ -10,7 +10,7 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
-      
+
       // ColorScheme (Material3準拠)
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
@@ -24,7 +24,7 @@ class AppTheme {
         onSecondary: AppColors.textMain,
         onError: AppColors.white,
       ),
-      
+
       // AppBarTheme
       appBarTheme: const AppBarTheme(
         elevation: 0,
@@ -39,18 +39,17 @@ class AppTheme {
           color: AppColors.textMain,
         ),
       ),
-      
+
       // CardTheme
-      cardTheme: CardTheme(
-        elevation: 12,
-        shadowColor: AppColors.shadowLight,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+      cardTheme: CardThemeData(
         color: AppColors.white,
         surfaceTintColor: Colors.transparent,
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
-      
+
       // ElevatedButtonTheme
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -69,7 +68,7 @@ class AppTheme {
           ),
         ),
       ),
-      
+
       // BottomNavigationBarTheme
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: AppColors.white,
@@ -88,7 +87,7 @@ class AppTheme {
           fontWeight: FontWeight.w400,
         ),
       ),
-      
+
       // InputDecorationTheme
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -114,7 +113,7 @@ class AppTheme {
           vertical: 12,
         ),
       ),
-      
+
       // TextTheme
       textTheme: const TextTheme(
         displayLarge: TextStyle(
@@ -223,10 +222,10 @@ class AppTheme {
           color: AppColors.textSub,
         ),
       ),
-      
+
       // フォントファミリー
       fontFamily: 'NotoSansJP',
-      
+
       // Material3追加設定
       splashFactory: InkRipple.splashFactory,
     );
@@ -235,7 +234,7 @@ class AppTheme {
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
-      
+
       // ColorScheme (Material3準拠 - ダークモード)
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
@@ -249,10 +248,10 @@ class AppTheme {
         onSecondary: AppColors.black,
         onError: AppColors.white,
       ),
-      
+
       // フォントファミリー
       fontFamily: 'NotoSansJP',
-      
+
       // Material3追加設定
       splashFactory: InkRipple.splashFactory,
     );
