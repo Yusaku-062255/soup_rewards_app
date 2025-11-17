@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -37,8 +38,21 @@ class PerformanceUtils {
   /// メモリ使用量を監視（デバッグモードのみ）
   static void logMemoryUsage(String context) {
     if (kDebugMode) {
-      // TODO: メモリ使用量の監視実装
-      debugPrint('Memory usage check: $context');
+      // タイムラインイベントを記録
+      developer.Timeline.instantSync(
+        'Memory Check',
+        arguments: {'context': context},
+      );
+
+      // タイムスタンプ付きでログ出力
+      final timestamp = DateTime.now().toIso8601String();
+      debugPrint('[$timestamp] Memory usage check: $context');
+
+      // デベロッパーイベントとして送信（DevToolsで確認可能）
+      developer.postEvent('memory_check', {
+        'context': context,
+        'timestamp': timestamp,
+      });
     }
   }
 }
