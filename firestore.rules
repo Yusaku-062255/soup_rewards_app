@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // ユーザーは自分のデータのみ読み書き可能
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if false; // ユーザー削除は管理者のみ
+    }
+    
+    // Transactions collection
+    match /transactions/{transactionId} {
+      // ユーザーは自分の取引履歴のみ読み取り可能
+      allow read: if isAuthenticated() && 
+                     resource.data.userId == request.auth.uid;
+      // 作成は認証済みユーザーのみ（通常はCloud Functions経由）
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+    
+    // Coupons collection
+    match /coupons/{couponId} {
+      // 全員がアクティブなクーポンを閲覧可能
+      allow read: if true;
+      // 作成・更新・削除は管理者のみ（通常はCloud Functions経由）
+      allow create, update, delete: if false;
+    }
+    
+    // UserCoupons collection (ユーザーが獲得したクーポン)
+    match /userCoupons/{userCouponId} {
+      // ユーザーは自分のクーポンのみ読み取り可能
+      allow read: if isAuthenticated() && 
+                     resource.data.userId == request.auth.uid;
+      // 作成は認証済みユーザーのみ（通常はCloud Functions経由）
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+      // 使用済みマークはユーザー自身のみ可能
+      allow update: if isAuthenticated() && 
+                       resource.data.userId == request.auth.uid &&
+                       request.resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+    
+    // Stores collection
+    match /stores/{storeId} {
+      // 全員が店舗情報を閲覧可能
+      allow read: if true;
+      // 作成・更新・削除は管理者のみ
+      allow create, update, delete: if false;
+    }
+    
+    // News collection
+    match /news/{newsId} {
+      // 全員がニュースを閲覧可能
+      allow read: if true;
+      // 作成・更新・削除は管理者のみ
+      allow create, update, delete: if false;
+    }
+    
+    // Reservations collection
+    match /reservations/{reservationId} {
+      // ユーザーは自分の予約のみ作成・読み取り可能
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null
+                    && resource.data.userId == request.auth.uid;
+    }
+    
+    // QR Codes collection
+    // 店舗に掲示されたQRコードの情報を管理
+    match /qr_codes/{code} {
+      // 認証済みユーザーのみがQRコード情報を読み取り可能
+      // 注意: QRコードの有効性チェック（enabled, expiresAt）はアプリ側で行う
+      allow read: if isAuthenticated();
+      // 作成・更新・削除は管理者のみ（Admin Web側から操作）
+      // TODO: 将来的にカスタムクレーム（admin role）で制御
+      allow create, update, delete: if false;
+    }
+    
+    // Redemptions collection
+    // ポイント交換（給油券など）のリクエストを管理
+    match /redemptions/{redemptionId} {
+      // ユーザーは自分の交換リクエストのみ作成・読み取り可能
+      allow create: if isAuthenticated() &&
+                     request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() &&
+                   resource.data.userId == request.auth.uid;
+      // 更新・削除は管理者のみ（Admin Web側でステータス更新）
+      // TODO: 将来的にカスタムクレーム（admin role）で制御
+      allow update, delete: if false;
+    }
+  }
+}
+

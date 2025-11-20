@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/constants/app_constants.dart';
+import '../../../../core/providers/app_providers.dart';
+import '../../../auth/presentation/pages/login_page.dart';
 
-/// ホームページ - SOUP Rewardsのメイン画面
+/// ホームページ - SOUP Rewardsのメイン画面（ゲスト利用前提）
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateChangesProvider);
+    final isGuest = authState.value == null;
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -32,20 +36,17 @@ class HomePage extends ConsumerWidget {
                 _buildHeader(context),
                 const SizedBox(height: 24),
                 
-                // ポイントカード
-                _buildPointCard(context),
+                // SOUP Rewards 紹介セクション
+                _buildIntroductionSection(context),
                 const SizedBox(height: 24),
                 
-                // クイックアクション
-                _buildQuickActions(context),
+                // 機能紹介カード
+                _buildFeatureCards(context),
                 const SizedBox(height: 24),
                 
-                // 最新ニュース
-                _buildNewsSection(context),
+                // 会員登録案内（下部）
+                _buildSignupPrompt(context, isGuest),
                 const SizedBox(height: 24),
-                
-                // おすすめサービス
-                _buildRecommendedServices(context),
               ],
             ),
           ),
@@ -62,395 +63,239 @@ class HomePage extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'おかえりなさい！',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              'SOUP Rewards',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: AppColors.white,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              AppConstants.brandMessage,
+              'カーコーティングで給油券が貯まる\nEVフレンドリーなライフスタイルを',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColors.white.withValues(alpha: 0.9),
+                height: 1.4,
               ),
             ),
           ],
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.black.withValues(alpha: 0.1),
-                offset: const Offset(0, 4),
-                blurRadius: 12,
-              ),
-            ],
-          ),
-          child: IconButton(
-            onPressed: () {
-              // 通知画面へ遷移
-            },
-            icon: const Icon(
-              Icons.notifications_outlined,
-              color: AppColors.primary,
-            ),
-          ),
         ),
       ],
     );
   }
 
-  Widget _buildPointCard(BuildContext context) {
+  Widget _buildIntroductionSection(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.black.withValues(alpha: 0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.local_gas_station,
+                  color: AppColors.primary,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'SOUP Rewardsとは',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'カーコーティングご利用で給油券クーポンが貯まります。\n日次くじで毎日ポイントがもらえます。',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureCards(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '主な機能',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        
+        // 日次くじカード
+        _buildFeatureCard(
+          context,
+          icon: Icons.card_giftcard,
+          title: '日次くじ',
+          description: '毎日1回、ランダムで5〜100Pがもらえます！',
+          color: AppColors.secondary,
+        ),
+        const SizedBox(height: 12),
+        
+        // ポイントカード
+        _buildFeatureCard(
+          context,
+          icon: Icons.stars,
+          title: 'ポイント管理',
+          description: 'カーコーティング利用でポイントが貯まり、給油券に交換できます',
+          color: AppColors.primary,
+        ),
+        const SizedBox(height: 12),
+        
+        // ランクカード
+        _buildFeatureCard(
+          context,
+          icon: Icons.workspace_premium,
+          title: 'ランクシステム',
+          description: 'ポイントに応じてEV BRONZE、SILVER、GOLD、PLATINUMのランクが上がります',
+          color: AppColors.accent,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFeatureCard(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String description,
+    required Color color,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary,
-            AppColors.primaryDark,
-          ],
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+          width: 1.5,
         ),
-        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            offset: const Offset(0, 8),
-            blurRadius: 24,
+            color: color.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '現在のポイント',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.white.withValues(alpha: 0.9),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '1,250',
-                style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  color: AppColors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Text(
-                'pt',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppColors.white,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '1pt = 1円でガソリンに交換可能',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.white.withValues(alpha: 0.8),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActions(BuildContext context) {
-    final actions = [
-      {'icon': Icons.local_gas_station, 'label': '給油', 'color': AppColors.carWash},
-      {'icon': Icons.car_repair, 'label': '洗車', 'color': AppColors.coating},
-      {'icon': Icons.build, 'label': 'メンテ', 'color': AppColors.maintenance},
-      {'icon': Icons.local_offer, 'label': 'クーポン', 'color': AppColors.secondary},
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'クイックアクション',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: actions.map((action) {
-            return _buildActionButton(
-              context,
-              icon: action['icon'] as IconData,
-              label: action['label'] as String,
-              color: action['color'] as Color,
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButton(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required Color color,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        // アクション実行
-      },
-      child: Column(
+      child: Row(
         children: [
           Container(
-            width: 60,
-            height: 60,
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: color.withValues(alpha: 0.3),
-                width: 1,
-              ),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
               color: color,
-              size: 28,
+              size: 32,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNewsSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '最新ニュース',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                // ニュース一覧へ遷移
-              },
-              child: const Text('すべて見る'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _buildNewsCard(
-          context,
-          title: '新サービス「プレミアム洗車」開始！',
-          date: '2024年10月1日',
-          category: 'サービス',
-        ),
-        const SizedBox(height: 12),
-        _buildNewsCard(
-          context,
-          title: '秋のキャンペーン実施中',
-          date: '2024年9月25日',
-          category: 'キャンペーン',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNewsCard(
-    BuildContext context, {
-    required String title,
-    required String date,
-    required String category,
-  }) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                category,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    date,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSub,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: AppColors.grey400,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecommendedServices(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'おすすめサービス',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 200,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              _buildServiceCard(
-                context,
-                title: 'プレミアム洗車',
-                description: '愛車をピカピカに',
-                price: '¥3,000',
-                image: Icons.local_car_wash,
-              ),
-              _buildServiceCard(
-                context,
-                title: 'コーティング',
-                description: '長期間の保護',
-                price: '¥15,000',
-                image: Icons.shield,
-              ),
-              _buildServiceCard(
-                context,
-                title: 'オイル交換',
-                description: 'エンジンを守る',
-                price: '¥4,000',
-                image: Icons.oil_barrel,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildServiceCard(
-    BuildContext context, {
-    required String title,
-    required String description,
-    required String price,
-    required IconData image,
-  }) {
-    return Container(
-      width: 160,
-      margin: const EdgeInsets.only(right: 16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowLight,
-            offset: const Offset(0, 4),
-            blurRadius: 12,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 100,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Center(
-              child: Icon(
-                image,
-                size: 48,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
+          const SizedBox(width: 16),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   description,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSub,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  price,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSignupPrompt(BuildContext context, bool isGuest) {
+    if (!isGuest) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.grey50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.grey200,
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            '会員登録すると、ポイントやクーポンをクラウドに保存できます。\n機種変更後も引き継げるので安心です。',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const LoginPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.person_add),
+            label: const Text('会員ログイン / 新規登録'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ],

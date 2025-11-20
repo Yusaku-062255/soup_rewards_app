@@ -5,6 +5,8 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/providers/app_providers.dart';
 import '../../../../core/utils/error_handler.dart';
 import '../../../../core/utils/performance_utils.dart';
+import '../../../../core/models/coupon_model.dart';
+import '../../../../core/models/news_model.dart';
 
 /// 改善されたホームページ - 状態管理とエラーハンドリング対応
 class ImprovedHomePage extends ConsumerStatefulWidget {
@@ -15,7 +17,7 @@ class ImprovedHomePage extends ConsumerStatefulWidget {
 }
 
 class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   @override
   void initState() {
@@ -24,34 +26,15 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
   }
 
   Future<void> _loadInitialData() async {
-    setState(() => _isLoading = true);
-    
-    try {
-      // 並列でデータを読み込み
-      await Future.wait([
-        ref.read(couponsProvider.notifier).loadCoupons(),
-        ref.read(newsProvider.notifier).loadNews(),
-      ]);
-    } catch (e, stackTrace) {
-      AppErrorHandler.handleError(e, stackTrace);
-      if (mounted) {
-        AppErrorHandler.showErrorSnackBar(
-          context,
-          'データの読み込みに失敗しました',
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+    // StreamProviderを使用しているため、データは自動的に読み込まれます
+    // 必要に応じてリフレッシュ処理を追加
   }
 
   @override
   Widget build(BuildContext context) {
     final points = ref.watch(pointsProvider);
-    final coupons = ref.watch(couponsProvider);
-    final news = ref.watch(newsProvider);
+    final couponsAsync = ref.watch(couponsProvider);
+    final newsAsync = ref.watch(newsProvider);
 
     return LoadingOverlay(
       isLoading: _isLoading,
@@ -81,23 +64,33 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
                     // ヘッダー部分
                     _buildHeader(context),
                     const SizedBox(height: 24),
-                    
+
                     // ポイントカード
                     _buildPointCard(context, points),
                     const SizedBox(height: 24),
-                    
+
                     // クイックアクション
                     _buildQuickActions(context),
                     const SizedBox(height: 24),
-                    
+
                     // 最新ニュース
-                    _buildNewsSection(context, news),
+                    newsAsync.when(
+                      data: (news) => _buildNewsSection(context, news),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
                     const SizedBox(height: 24),
-                    
+
                     // クーポン一覧
-                    _buildCouponsSection(context, coupons),
+                    couponsAsync.when(
+                      data: (coupons) => _buildCouponsSection(context, coupons),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
                     const SizedBox(height: 24),
-                    
+
                     // おすすめサービス
                     _buildRecommendedServices(context),
                   ],
@@ -120,16 +113,16 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
             Text(
               'おかえりなさい',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppColors.white,
-              ),
+                    color: AppColors.white,
+                  ),
             ),
             const SizedBox(height: 4),
             Text(
               AppConstants.appName,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.white,
-                fontWeight: FontWeight.bold,
-              ),
+                    color: AppColors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
           ],
         ),
@@ -190,9 +183,9 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
               Text(
                 'ポイント残高',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -206,9 +199,9 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
                 child: Text(
                   'GOLD',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+                        color: AppColors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ),
             ],
@@ -220,10 +213,10 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
               Text(
                 points.toString(),
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 36,
-                ),
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 36,
+                    ),
               ),
               const SizedBox(width: 8),
               Padding(
@@ -231,8 +224,8 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
                 child: Text(
                   'pt',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+                        color: AppColors.textSecondary,
+                      ),
                 ),
               ),
             ],
@@ -358,8 +351,8 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
         Text(
           'クイックアクション',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 16),
         Row(
@@ -410,8 +403,8 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
             Text(
               action.label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+                    fontWeight: FontWeight.w500,
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -420,7 +413,7 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
     );
   }
 
-  Widget _buildNewsSection(BuildContext context, List<News> news) {
+  Widget _buildNewsSection(BuildContext context, List<NewsModel> news) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -430,8 +423,8 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
             Text(
               '最新ニュース',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             TextButton(
               onPressed: () {
@@ -461,7 +454,7 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
     );
   }
 
-  Widget _buildNewsItem(BuildContext context, News news) {
+  Widget _buildNewsItem(BuildContext context, NewsModel news) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -498,8 +491,8 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
                 Text(
                   news.title,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                        fontWeight: FontWeight.w600,
+                      ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -507,18 +500,18 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
                 Text(
                   news.content,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+                        color: AppColors.textSecondary,
+                      ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${news.publishDate.month}/${news.publishDate.day}',
+                  '${news.publishedAt.month}/${news.publishedAt.day}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                 ),
               ],
             ),
@@ -528,8 +521,8 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
     );
   }
 
-  Widget _buildCouponsSection(BuildContext context, List<Coupon> coupons) {
-    final availableCoupons = coupons.where((c) => !c.isUsed).toList();
+  Widget _buildCouponsSection(BuildContext context, List<CouponModel> coupons) {
+    final availableCoupons = coupons.where((c) => c.isAvailable).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,8 +533,8 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
             Text(
               '利用可能なクーポン',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             TextButton(
               onPressed: () {
@@ -580,7 +573,7 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
     );
   }
 
-  Widget _buildCouponItem(BuildContext context, Coupon coupon) {
+  Widget _buildCouponItem(BuildContext context, CouponModel coupon) {
     return Container(
       width: 200,
       margin: const EdgeInsets.only(right: 12),
@@ -607,27 +600,29 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${coupon.discountRate}% OFF',
+            '${coupon.pointsCost}P',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.bold,
-            ),
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 4),
           Text(
             coupon.title,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
+                  fontWeight: FontWeight.w500,
+                ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           const Spacer(),
           Text(
-            '有効期限: ${coupon.expiryDate.month}/${coupon.expiryDate.day}',
+            coupon.validUntil != null
+                ? '有効期限: ${coupon.validUntil!.month}/${coupon.validUntil!.day}'
+                : '有効期限なし',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+                  color: AppColors.textSecondary,
+                ),
           ),
         ],
       ),
@@ -641,8 +636,8 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
         Text(
           'おすすめサービス',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 16),
         Container(
@@ -687,9 +682,9 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
                   Text(
                     'プレミアムコーティング',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+                          color: AppColors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                 ],
               ),
@@ -697,8 +692,8 @@ class _ImprovedHomePageState extends ConsumerState<ImprovedHomePage> {
               Text(
                 '長期間効果が持続する最新のコーティング技術で、あなたの愛車を美しく保護します。',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.white.withValues(alpha: 0.9),
-                ),
+                      color: AppColors.white.withValues(alpha: 0.9),
+                    ),
               ),
               const SizedBox(height: 16),
               ElevatedButton(

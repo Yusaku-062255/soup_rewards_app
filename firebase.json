@@ -1,1 +1,44 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"soup-rewrd-app","appId":"1:341665435745:android:6b4bdbb8e18103aecc9a20","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"soup-rewrd-app","appId":"1:341665435745:ios:5aac21562ccea38ecc9a20","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"macos":{"default":{"projectId":"soup-rewrd-app","appId":"1:341665435745:ios:5aac21562ccea38ecc9a20","uploadDebugSymbols":false,"fileOutput":"macos/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"soup-rewrd-app","configurations":{"android":"1:341665435745:android:6b4bdbb8e18103aecc9a20","ios":"1:341665435745:ios:5aac21562ccea38ecc9a20","macos":"1:341665435745:ios:5aac21562ccea38ecc9a20","web":"1:341665435745:web:9b5852a05e42e078cc9a20"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "soup-rewrd-app",
+          "appId": "1:341665435745:android:6b4bdbb8e18103aecc9a20",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "soup-rewrd-app",
+          "appId": "1:341665435745:ios:5aac21562ccea38ecc9a20",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "soup-rewrd-app",
+          "appId": "1:341665435745:ios:5aac21562ccea38ecc9a20",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "soup-rewrd-app",
+          "configurations": {
+            "android": "1:341665435745:android:6b4bdbb8e18103aecc9a20",
+            "ios": "1:341665435745:ios:5aac21562ccea38ecc9a20",
+            "macos": "1:341665435745:ios:5aac21562ccea38ecc9a20",
+            "web": "1:341665435745:web:9b5852a05e42e078cc9a20"
+          }
+        }
+      }
+    }
+  }
+}

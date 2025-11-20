@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'home_page.dart';
 import '../../../coupons/presentation/pages/coupons_page.dart';
-import '../../../qr_scan/presentation/pages/qr_scan_page.dart';
 import '../../../points/presentation/pages/points_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
+import '../../../qr_scan/presentation/pages/qr_scan_page_new.dart';
 
 /// メインページ - BottomNavigationBar付きの画面管理
 class MainPage extends ConsumerStatefulWidget {
@@ -21,7 +21,7 @@ class _MainPageState extends ConsumerState<MainPage> {
   final List<Widget> _pages = [
     const HomePage(),
     const CouponsPage(),
-    const QrScanPage(),
+    const QrScanPageNew(), // QRスキャンタブ
     const PointsPage(),
     const ProfilePage(),
   ];
